@@ -76,7 +76,6 @@ def download_dataset() -> None:
             f"Finished downloading dataset for {file_name} split in {(time.time() - start_time):.3f} sec."
         )
         print()
-        break
 
 
 def extract_dataset() -> None:
@@ -99,7 +98,7 @@ def extract_dataset() -> None:
     )
 
     # Iterates across file names for dataset splits.
-    for file_name in ["test"]:
+    for file_name in ["test", "validation", "train"]:
 
         # If file path does not exist, then extracts files from the tar file.
         if not os.path.exists(
@@ -126,3 +125,17 @@ def extract_dataset() -> None:
                 f"Files for '{file_name}' already exist in {extracted_data_directory_path}. Skipping extraction."
             )
         print()
+
+
+def main():
+    print()
+
+    # Downloads the LibriSpeech dataset using the OpenSLR links.
+    download_dataset()
+
+    # Extracts files from the LibriSpeech dataset previously downloaded.
+    extract_dataset()
+
+
+if __name__ == "__main__":
+    main()
