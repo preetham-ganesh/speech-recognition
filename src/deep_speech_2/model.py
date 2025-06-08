@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from typing import List, Any
+from typing import List
 
 
 class DeepSpeech2(tf.keras.Model):
@@ -70,20 +70,23 @@ class DeepSpeech2(tf.keras.Model):
             )
 
         # Initially a Reshape layer to reshape the output from Conv Blocks.
-        self.model_layers["reshape_0"] = tf.keras.layers.Reshape(
-            target_shape=(-1, None), name="reshape_0"
+        self.model_layers["reshape_0"] = tf.keras.layers.Lambda(
+            lambda t: tf.reshape(
+                t, [tf.shape(t)[0], tf.shape(t)[1], tf.shape(t)[2] * tf.shape(t)[3]]
+            ),
+            name="reshape_0",
         )
 
         # Initializes multiple Bidirectional LSTM blocks.
         for b_id in range(self.rnn_blocks):
             self.model_layers[f"block_{b_id}_rnn_fwd"] = tf.keras.layers.LSTM(
-                units=self.rnn_units,
+                units=rnn_units,
                 return_state=True,
                 return_sequences=True,
                 name=f"block_{b_id}_rnn_fwd",
             )
             self.model_layers[f"block_{b_id}_rnn_bwd"] = tf.keras.layers.LSTM(
-                units=self.rnn_units,
+                units=rnn_units,
                 return_state=True,
                 return_sequences=True,
                 go_backwards=True,
@@ -140,3 +143,18 @@ class DeepSpeech2(tf.keras.Model):
         x = self.model_layers["dense_0"](x)
         x = self.model_layers["dropout_0"](x, training=training)
         x = self.model_layers["final"](x)
+        return x
+
+    def build_graph(self) -> tf.keras.Model:
+        """Builds plottable graph for the model.
+
+        Builds plottable graph for the model.
+
+        Args:
+            None.
+
+        Returns:
+            A tensorflow keras model for the current model configuration.
+        """
+        inputs = tf.keras.layers.Input(shape=(None, None, 1), name="input_0")
+        return tf.keras.Model(inputs=inputs, outputs=self.call(inputs, False))
