@@ -12,6 +12,7 @@ warnings.filterwarnings("ignore")
 
 
 import requests
+from tqdm import tqdm
 
 from src.utils import check_directory_path_existence
 
@@ -51,20 +52,31 @@ def download_dataset() -> None:
             continue
 
         # Sends request for the current language dataset file.
-        response = requests.get(link)
+        response = requests.get(link, stream=True)
 
         # Checks if the response has a success code. If not then prints the error message.
         assert response.status_code == 200, response.text
 
-        # Saves the compressed file in the response as a .tgz file.
-        with open(file_path, "wb") as out_file:
-            out_file.write(response.content)
-        out_file.close()
+        # Gets total file size from headers (in bytes).
+        total_size = int(response.headers.get("content-length", 0))
+
+        # Downloads the file with progress bar.
+        with open(file_path, "wb") as out_file, tqdm(
+            desc=f"Downloading {file_name}.tgz",
+            total=total_size,
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+        ) as pbar:
+            for data in response.iter_content(chunk_size=1024):
+                out_file.write(data)
+                pbar.update(len(data))
 
         print(
             f"Finished downloading dataset for {file_name} split in {(time.time() - start_time):.3f} sec."
         )
         print()
+        break
 
 
 def extract_dataset() -> None:
@@ -87,11 +99,13 @@ def extract_dataset() -> None:
     )
 
     # Iterates across file names for dataset splits.
-    for file_name in ["train", "validation", "test"]:
+    for file_name in ["test"]:
 
         # If file path does not exist, then extracts files from the tar file.
         if not os.path.exists(
-            os.path.join(extracted_data_directory_path, file_name, "BOOKS.TXT")
+            os.path.join(
+                extracted_data_directory_path, file_name, "LibriSpeech", "BOOKS.TXT"
+            )
         ):
             # Creates absolute directory path for current file name.
             tar_file_path = os.path.join(raw_data_directory_path, f"{file_name}.tgz")
@@ -99,7 +113,7 @@ def extract_dataset() -> None:
             # Extracts files from downloaded data tar file into a directory.
             try:
                 file = tarfile.open(tar_file_path)
-                file.extractall(extracted_data_directory_path)
+                file.extractall(os.path.join(extracted_data_directory_path, file_name))
                 file.close()
             except FileNotFoundError as error:
                 raise FileNotFoundError(f"{tar_file_path} does not exist")
