@@ -6,7 +6,7 @@ import librosa
 
 from src.utils import check_directory_path_existence, load_text_file
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class Dataset(object):
@@ -219,3 +219,20 @@ class Dataset(object):
         # Transposes: librosa spectrogram from (freq_bins, time_steps) -> (time_steps, freq_bins).
         log_spectrogram = log_spectrogram.T
         return log_spectrogram
+
+    def tokenize_text(self, text: str) -> List[int]:
+        """Tokenizes text to convert into ids using trained tokenizer.
+
+        Tokenizes text to convert into ids using trained tokenizer.
+
+        Args:
+            text: A string for the target text that should be tokenized.
+
+        Returns:
+            A list of integers for the tokenized & encoded version of the text.
+        """
+        # Checks types & values of arguments.
+        assert isinstance(text, str), "Variable text should be of type 'str'."
+
+        # Tokenizes characters into ids based on trained tokenizer.
+        return [self.char_to_id[c] for c in text]
