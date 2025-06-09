@@ -100,7 +100,7 @@ class Dataset(object):
             )
             print()
 
-    def extract_dataset() -> None:
+    def extract_dataset(self) -> None:
         """Extracts files from the LibriSpeech dataset previously downloaded.
 
         Extracts files from the LibriSpeech dataset previously downloaded.
@@ -205,7 +205,10 @@ class Dataset(object):
                 for file_info in transcriptions:
 
                     # Splits file info into file name & transcription text.
-                    file_name, text = file_info.split(" ", 1)
+                    try:
+                        file_name, text = file_info.split(" ", 1)
+                    except ValueError:
+                        continue
 
                     # Converts characters in text into lowercase, and removes leading & trailing whitespaces.
                     text = text.lower()
