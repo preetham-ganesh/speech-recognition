@@ -200,7 +200,11 @@ class Train(object):
         self.validation_cer = tf.keras.metrics.Mean(name="validation_cer")
 
     def compute_loss(
-        self, target_batch: tf.Tensor, predicted_batch: tf.Tensor
+        self,
+        target_batch: tf.Tensor,
+        predicted_batch: tf.Tensor,
+        input_length: tf.Tensor,
+        label_length: tf.Tensor,
     ) -> tf.Tensor:
         """Computes loss for the current batch using actual & predicted values.
 
@@ -209,6 +213,8 @@ class Train(object):
         Args:
             target_batch: A tensor for target batch of generated mask images.
             predicted_batch: A tensor for batch of outputs predicted by the model for input batch.
+            input_length: A tensor for the batch of input sequence length per sample (before padding).
+            target_length: A tensor for the batch of target sequence length per sample (before padding).
 
         Returns:
             A tensor for the loss computed on comparing target & predicted batch.
@@ -220,8 +226,15 @@ class Train(object):
         assert isinstance(
             predicted_batch, tf.Tensor
         ), "Variable predicted_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            input_length, tf.Tensor
+        ), "Variable input_length should be of type 'tf.Tensor'."
+        assert isinstance(
+            label_length, tf.Tensor
+        ), "Variable label_length should be of type 'tf.Tensor'."
 
         # Computes loss for current target & predicted batches.
-        loss_object = tf.keras.losses.CTC(reduction="sum_over_batch_size", name="ctc")
-        current_loss = loss_object(target_batch, predicted_batch)
-        return current_loss
+        current_loss = tf.keras.backend.ctc_batch_cost(
+            target_batch, predicted_batch, input_length, label_length
+        )
+        return tf.reduce_mean(current_loss)
