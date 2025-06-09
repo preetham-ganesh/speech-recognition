@@ -1,5 +1,6 @@
 import os
 import time
+import tarfile
 
 import requests
 from tqdm import tqdm
@@ -94,4 +95,56 @@ class Dataset(object):
             print(
                 f"Finished downloading dataset for {file_name} split in {(time.time() - start_time):.3f} sec."
             )
+            print()
+
+    def extract_dataset() -> None:
+        """Extracts files from the LibriSpeech dataset previously downloaded.
+
+        Extracts files from the LibriSpeech dataset previously downloaded.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Checks if the following directory paths exists.
+        raw_data_directory_path = check_directory_path_existence(
+            os.path.join("data", "raw_data", "librispeech")
+        )
+        extracted_data_directory_path = check_directory_path_existence(
+            os.path.join("data", "extracted_data", "librispeech")
+        )
+
+        # Iterates across file names for dataset splits.
+        for file_name in ["test", "validation", "train"]:
+
+            # If file path does not exist, then extracts files from the tar file.
+            if not os.path.exists(
+                os.path.join(
+                    extracted_data_directory_path, file_name, "LibriSpeech", "BOOKS.TXT"
+                )
+            ):
+                # Creates absolute directory path for current file name.
+                tar_file_path = os.path.join(
+                    raw_data_directory_path, f"{file_name}.tgz"
+                )
+
+                # Extracts files from downloaded data tar file into a directory.
+                try:
+                    file = tarfile.open(tar_file_path)
+                    file.extractall(
+                        os.path.join(extracted_data_directory_path, file_name)
+                    )
+                    file.close()
+                except FileNotFoundError as error:
+                    raise FileNotFoundError(f"{tar_file_path} does not exist")
+                print(
+                    f"Finished extracting files from '{file_name}.tgz' to {extracted_data_directory_path}."
+                )
+
+            else:
+                print(
+                    f"Files for '{file_name}' already exist in {extracted_data_directory_path}. Skipping extraction."
+                )
             print()
