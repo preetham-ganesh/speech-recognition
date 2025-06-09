@@ -3,7 +3,7 @@ import os
 import mlflow
 import tensorflow as tf
 
-from src.utils import load_json_file
+from src.utils import load_json_file, check_directory_path_existence
 from src.dataset import Dataset
 from src.deep_speech_2 import DeepSpeech2
 
@@ -141,3 +141,60 @@ class Train(object):
         )
         print("Finished loading model for current configuration.")
         print()
+
+    def generate_model_summary_and_plot(self, plot: bool) -> None:
+        """Generates summary & plot for loaded model.
+
+        Generates summary & plot for loaded model.
+
+        Args:
+            pool: A boolean value to whether generate model plot or not.
+
+        Returns:
+            None.
+        """
+        # Compiles the model to log the model summary.
+        model_summary = list()
+        self.model.summary(print_fn=lambda x: model_summary.append(x))
+        model_summary = "\n".join(model_summary)
+        print(model_summary)
+        mlflow.log_text(
+            model_summary, os.path.join(f"v{self.model_version}", "model_summary.txt")
+        )
+
+        # Creates the following directory path if it does not exist.
+        self.reports_directory_path = check_directory_path_existence(
+            os.path.join("models", f"v{self.model_version}", "reports")
+        )
+
+        # Plots the model & saves it as a PNG file.
+        if plot:
+            tf.keras.utils.plot_model(
+                self.model,
+                os.path.join(self.reports_directory_path, "model_plot.png"),
+                show_shapes=True,
+                show_layer_names=True,
+                expand_nested=True,
+            )
+
+            # Logs the saved model plot PNG file.
+            mlflow.log_artifact(
+                os.path.join(self.reports_directory_path, "model_plot.png"),
+                f"v{self.model_version}",
+            )
+
+    def initialize_metric_trackers(self) -> None:
+        """Initializes trackers which computes the mean of all metrics.
+
+        Initializes trackers which computes the mean of all metrics.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        self.train_loss = tf.keras.metrics.Mean(name="train_loss")
+        self.validation_loss = tf.keras.metrics.Mean(name="validation_loss")
+        self.train_cer = tf.keras.metrics.Mean(name="train_cer")
+        self.validation_cer = tf.keras.metrics.Mean(name="validation_cer")
