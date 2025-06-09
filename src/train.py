@@ -1,9 +1,11 @@
 import os
 
 import mlflow
+import tensorflow as tf
 
 from src.utils import load_json_file
 from src.dataset import Dataset
+from src.deep_speech_2 import DeepSpeech2
 
 
 class Train(object):
@@ -89,3 +91,53 @@ class Train(object):
 
         # Trains a simple character-level tokenizer for CTC-based speech recognition.
         self.dataset.train_tokenizer()
+
+        # Updates model configuration with vocab size.
+        self.model_configuration["model"]["vocab_size"] = (
+            len(self.dataset.char_to_id) + 1
+        )
+
+    def load_model(self) -> None:
+        """Loads model & other utilies based on model configuration.
+
+        Loads model & other utilies based on model configuration.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Based on model architecture, the model is initialized.
+        if self.model_configuration["model"]["architecture"] == "deep_speech_2":
+            self.model = DeepSpeech2(
+                self.model_configuration["model"]["conv_filters"],
+                self.model_configuration["model"]["rnn_units"],
+                self.model_configuration["model"]["vocab_size"],
+                self.model_configuration["model"]["rnn_blocks"],
+                self.model_configuration["model"]["rate"],
+            )
+
+        # Builds plottable graph for the model.
+        self.model = self.model.build_graph()
+
+        # Loads the optimizer.
+        self.optimizer = tf.keras.optimizers.Adam(
+            learning_rate=self.model_configuration["model"]["learning_rate"]
+        )
+
+        # Creates checkpoint manager for the neural network model.
+        self.checkpoint_directory_path = os.path.join(
+            self.home_directory_path,
+            "models",
+            f"v{self.model_version}",
+            "checkpoints",
+        )
+        self.checkpoint = tf.train.Checkpoint(
+            optimizer=self.optimizer, model=self.model
+        )
+        self.manager = tf.train.CheckpointManager(
+            self.checkpoint, directory=self.checkpoint_directory_path, max_to_keep=1
+        )
+        print("Finished loading model for current configuration.")
+        print()
