@@ -110,3 +110,37 @@ class DeepSpeech2(tf.keras.Model):
             rate=rate, name="dropout_0"
         )
         self.model_layers["final"] = tf.keras.layers.Dense(vocab_size, name="final")
+
+    def call(self, inputs: List[tf.Tensor], training: bool = False) -> List[tf.Tensor]:
+        """Inputs are passed through the layers in the model.
+
+        Inputs are passed through the layers in the model.
+
+        Args:
+            inputs: A list of input tensors from the input batch.
+            training: A boolean value for the flag of training/testing state.
+
+        Returns:
+            A tensors for the output predicted by the model for the current inputs.
+        """
+        x = inputs[0]
+
+        # Passes the inputs through the Conv blocks.
+        for b_id in range(self.cnn_blocks):
+            x = self.model_layers[f"block_{b_id}_conv2d_0"](x)
+            x = self.model_layers[f"block_{b_id}_bn_0"](x)
+            x = self.model_layers[f"block_{b_id}_relu_0"](x)
+
+        # Passes the Conv block output through the Reshape layer.
+        x = self.model_layers["reshape_0"](x)
+
+        # Passes the Reshaped Conv block output (or RNN block output) through the RNN blocks.
+        for b_id in range(self.rnn_blocks):
+            x, *_ = self.model_layers[f"block_{b_id}_bi_rnn"](x)
+            x = self.model_layers[f"block_{b_id}_dropout_0"](x, training=training)
+
+        # Passes the RNN block output through the final layers.
+        x = self.model_layers["dense_0"](x)
+        x = self.model_layers["dropout_0"](x, training=training)
+        x = self.model_layers["final"](x)
+        return x
