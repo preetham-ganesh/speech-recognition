@@ -4,6 +4,7 @@ import tarfile
 
 import requests
 from tqdm import tqdm
+import tensorflow as tf
 
 from src.utils import check_directory_path_existence, load_text_file
 
@@ -281,3 +282,28 @@ class Dataset(object):
         print(f"No. of validation steps per epoch: {self.n_validation_steps_per_epoch}")
         print(f"No. of test steps per epoch: {self.n_test_steps_per_epoch}")
         print()
+
+    def train_tokenizer(self) -> None:
+        """Trains a simple character-level tokenizer for CTC-based speech recognition.
+
+        Trains a simple character-level tokenizer for CTC-based speech recognition.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Creates empty dictionary to store char <-> ids.
+        self.char_to_id, self.id_to_char = dict(), dict()
+
+        # Iterates across ASCII lowercase to add them to tokenizer.
+        for c_id in range(26):
+            self.char_to_id[chr(ord("a") + c_id)] = c_id + 1
+            self.id_to_char[c_id + 1] = chr(ord("a") + c_id)
+
+        # Adds space & ' to the char <-> id tokenizers.
+        self.char_to_id[" "] = c_id + 2
+        self.id_to_char[c_id + 2] = " "
+        self.char_to_id["'"] = c_id + 3
+        self.id_to_char[c_id + 3] = "'"
