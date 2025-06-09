@@ -1,3 +1,8 @@
+import os
+
+from src.utils import load_json_file
+
+
 class Train(object):
     """"""
 
@@ -18,3 +23,22 @@ class Train(object):
         # Initalizes class variables.
         self.model_version = model_version
         self.best_validation_loss = None
+
+    def load_model_configuration(self) -> None:
+        """Loads the model configuration file for model version.
+
+        Loads the model configuration file for model version.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        self.home_directory_path = os.getcwd()
+        model_configuration_directory_path = os.path.join(
+            self.home_directory_path, "configs"
+        )
+        self.model_configuration = load_json_file(
+            f"v{self.model_version}", model_configuration_directory_path
+        )
