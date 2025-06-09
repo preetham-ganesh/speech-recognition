@@ -5,6 +5,8 @@ import tarfile
 import requests
 from tqdm import tqdm
 import tensorflow as tf
+import numpy as np
+import librosa
 
 from src.utils import check_directory_path_existence, load_text_file
 
@@ -307,3 +309,29 @@ class Dataset(object):
         self.id_to_char[c_id + 2] = " "
         self.char_to_id["'"] = c_id + 3
         self.id_to_char[c_id + 3] = "'"
+
+    def load_preprocess_audio(self, file_path: str, n_mels: int = 161) -> np.ndarray:
+        """Loads and preprocesses an audio file into a log-Mel spectrogram.
+
+        Loads and preprocesses an audio file into a log-Mel spectrogram.
+
+        Args:
+            file_path: A string for the absolute path of the file location.
+            n_mels: An integers for the no. of Mel frequency bins.
+
+        Returns:
+            A NumPy array for the log-mel spectrogram loaded from the audio file.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
+
+        # Loads audio using the file path, with sample rate at 16kHz.
+        y, sr = librosa.load(file_path, sr=16000)
+
+        # Computes log-mel spectrogram for the loaded audio file.
+        spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels)
+        log_spectrogram = librosa.power_to_db(spectrogram, ref=np.max)
+
+        # Transposes: librosa spectrogram from (freq_bins, time_steps) -> (time_steps, freq_bins).
+        log_spectrogram = log_spectrogram.T
+        return log_spectrogram
