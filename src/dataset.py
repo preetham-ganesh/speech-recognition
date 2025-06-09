@@ -352,3 +352,68 @@ class Dataset(object):
 
         # Tokenizes characters into ids based on trained tokenizer.
         return [self.char_to_id[c] for c in text]
+
+    def load_input_target_batches(
+        self, file_paths: List[str], texts: List[str]
+    ) -> List[tf.Tensor]:
+        """Loads and preprocesses a batch of audio files and corresponding text labels.
+
+        Loads and preprocesses a batch of audio files and corresponding text labels.
+
+        Args:
+            file_paths: A list of strings for locations of audio files in current batch.
+            texts: A list of strings for transcriptions of audio files in current batch.
+
+        Returns:
+            A list of tensors for input & target batches of spectrograms & tokenized texts.
+        """
+        # Checks types & values of arguments.
+        assert isinstance(
+            file_paths, list
+        ), "Variable file_paths should be of type 'list'."
+        assert isinstance(texts, list), "Variable texts should be of type 'list'."
+
+        # Creates empty lists to store input spectrograms & tokenized texts.
+        input_spectrograms, target_batch = list(), list()
+
+        # Iterates across file paths in current batch.
+        max_spectrogram_length = 0
+        for f_id in range(len(file_paths)):
+
+            # Loads and preprocesses an audio file into a log-Mel spectrogram.
+            spectrogram = self.load_preprocess_audio(str(file_paths[f_id], "UTF-8"))
+
+            # Updates max spectrogram length if current length is higher.
+            max_spectrogram_length = max(max_spectrogram_length, spectrogram.shape[0])
+
+            # Appends extracted spectrogram for current file into list.
+            input_spectrograms.append(spectrogram)
+
+            # Appends tokenized & encoded version of text for current file.
+            target_batch.append(self.tokenize_text(str(texts[f_id], "UTF-8")))
+
+        # Creates an empty numpy array to store padded versions of spectrogram for all audio files in current batch.
+        input_batch = np.zeros(
+            (
+                len(input_spectrograms),
+                max_spectrogram_length,
+                input_spectrograms[0].shape[1],
+            )
+        )
+
+        # Copies loaded spectrogram for all audio files in current batch to input batch array.
+        for f_id, spectrogram in enumerate(input_spectrograms):
+            input_batch[f_id, : spectrogram.shape[0], :] = spectrogram
+
+        # Adds extra dimension to the input batch.
+        input_batch = tf.expand_dims(input_batch, axis=-1)
+
+        # Pads input & target batch tensors with 0 at the end.
+        target_batch = tf.keras.preprocessing.sequence.pad_sequences(
+            target_batch, padding="post", dtype="int32"
+        )
+
+        # Converts input & target batches into tensor of data type float32 & int32.
+        input_batch = tf.convert_to_tensor(input_batch, dtype=tf.float32)
+        target_batch = tf.convert_to_tensor(target_batch, dtype=tf.int32)
+        return [input_batch, target_batch]
