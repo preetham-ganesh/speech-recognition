@@ -1,6 +1,7 @@
 import os
 
 from src.utils import load_json_file
+from src.dataset import Dataset
 
 
 class Train(object):
@@ -42,3 +43,35 @@ class Train(object):
         self.model_configuration = load_json_file(
             f"v{self.model_version}", model_configuration_directory_path
         )
+
+    def load_dataset(self) -> None:
+        """Loads audio file paths & transcriptions in the dataset.
+
+        Loads audio file paths & transcriptions in the dataset.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Creates object attributes for the Dataset class.
+        self.dataset = Dataset(self.model_configuration)
+
+        # Downloads the LibriSpeech dataset using the OpenSLR links.
+        self.dataset.download_dataset()
+
+        # Extracts files from the LibriSpeech dataset previously downloaded.
+        self.dataset.extract_dataset()
+
+        # Loads file paths and transcription texts for a given dataset split (train, validation & test).
+        self.dataset.load_dataset_file_paths("train")
+        self.dataset.load_dataset_file_paths("validation")
+        self.dataset.load_dataset_file_paths("test")
+        print()
+
+        # Zips file paths & transcriptions into single tensor dataset & slices them based on batch size.
+        self.dataset.shuffle_slice_dataset()
+
+        # Trains a simple character-level tokenizer for CTC-based speech recognition.
+        self.dataset.train_tokenizer()
