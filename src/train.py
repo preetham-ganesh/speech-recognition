@@ -1,5 +1,7 @@
 import os
 
+import mlflow
+
 from src.utils import load_json_file
 from src.dataset import Dataset
 
@@ -43,6 +45,18 @@ class Train(object):
         self.model_configuration = load_json_file(
             f"v{self.model_version}", model_configuration_directory_path
         )
+
+        # Sets tag in MLFlow.
+        mlflow.set_tag(
+            "architecture", self.model_configuration["model"]["architecture"]
+        )
+
+        # Logs parameters in MLFlow.
+        mlflow.log_param(
+            "conv_filters", self.model_configuration["model"]["conv_filters"]
+        )
+        mlflow.log_param("rnn_units", self.model_configuration["model"]["rnn_units"])
+        mlflow.log_param("rnn_blocks", self.model_configuration["model"]["rnn_blocks"])
 
     def load_dataset(self) -> None:
         """Loads audio file paths & transcriptions in the dataset.
