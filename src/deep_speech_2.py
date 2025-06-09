@@ -144,3 +144,24 @@ class DeepSpeech2(tf.keras.Model):
         x = self.model_layers["dropout_0"](x, training=training)
         x = self.model_layers["final"](x)
         return x
+
+    def build_graph(self) -> tf.keras.Model:
+        """Builds plottable graph for the model.
+
+        Builds plottable graph for the model.
+
+        Args:
+            None.
+
+        Returns:
+            A tensorflow keras model for the current model configuration.
+        """
+        # Builds the model & all the layers with concrete inputs.
+        concrete_inputs = tf.keras.layers.Input(
+            shape=(200, 161, 1), name="input_concrete"
+        )
+        _ = self.call([concrete_inputs], False)
+
+        # Builds the model with flexible inputs.
+        inputs = tf.keras.layers.Input(shape=(None, None, 1), name="input_0")
+        return tf.keras.Model(inputs=inputs, outputs=self.call(inputs, False))
