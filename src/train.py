@@ -396,3 +396,19 @@ class Train(object):
         # Computes mean for loss, and character error rate score.
         self.validation_loss(batch_loss)
         self.validation_cer(batch_cer)
+
+    def reset_metrics_trackers(self) -> None:
+        """Resets states for trackers before the start of each epoch.
+
+        Resets states for trackers before the start of each epoch.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        self.train_loss.reset_state()
+        self.validation_loss.reset_state()
+        self.train_cer.reset_state()
+        self.validation_cer.reset_state()
