@@ -697,3 +697,52 @@ class Train(object):
                 "test_cer": self.validation_cer.result().numpy(),
             }
         )
+
+    def serialize_model(self) -> None:
+        """Serializes model as TensorFlow module & saves it as MLFlow artifact.
+
+        Serializes model as TensorFlow module & saves it as MLFlow artifact.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Defines input shape for exported model's input signature.
+        input_shape = [2, 200, 161, 1]
+
+        # Predicts output for the sample input using the model.
+        input_data = tf.ones(input_shape)
+        output_0 = self.model.predict(input_data)
+
+        # Saves the model in TF Saved Model format.
+        save_path = os.path.join(
+            self.home_directory_path, "models", f"v{self.model_version}", "serialized"
+        )
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        self.model.export(save_path)
+
+        # Loads the serialized model to check if the loaded model is callable.
+        exported_model = tf.saved_model.load(save_path)
+
+        # Get the callable signature (default is "serving_default")
+        serving_model = exported_model.signatures["serving_default"]
+
+        # Predicts output for the sample input using the model
+        output_1 = serving_model(input_data)
+
+        # Checks if the shape between output from saved & loaded models matches.
+        assert (
+            output_0.shape == output_1["output_0"].shape
+        ), "Shape does not match between the output from saved & loaded models."
+        print("Finished serializing model & configuration files.")
+        print()
+
+        # Logs serialized model as artifact.
+        mlflow.log_artifacts(save_path, f"v{self.model_configuration['version']}/model")
+
+        # Logs updated model configuration as artifact.
+        mlflow.log_dict(
+            self.model_configuration, f"v{self.model_version}/model_configuration.json"
+        )
