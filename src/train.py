@@ -1,4 +1,5 @@
 import os
+import time
 
 import mlflow
 import tensorflow as tf
@@ -206,8 +207,8 @@ class Train(object):
         self,
         target_batch: tf.Tensor,
         predicted_batch: tf.Tensor,
-        input_length: tf.Tensor,
-        label_length: tf.Tensor,
+        input_lengths: tf.Tensor,
+        target_lengths: tf.Tensor,
     ) -> tf.Tensor:
         """Computes loss for the current batch using actual & predicted values.
 
@@ -216,8 +217,8 @@ class Train(object):
         Args:
             target_batch: A tensor for target batch of generated mask images.
             predicted_batch: A tensor for batch of outputs predicted by the model for input batch.
-            input_length: A tensor for the batch of input sequence length per sample (before padding).
-            target_length: A tensor for the batch of target sequence length per sample (before padding).
+            input_lengths: A tensor for the batch of input sequence length per sample (before padding).
+            target_lengths: A tensor for the batch of target sequence length per sample (before padding).
 
         Returns:
             A tensor for the loss computed on comparing target & predicted batch.
@@ -230,15 +231,15 @@ class Train(object):
             predicted_batch, tf.Tensor
         ), "Variable predicted_batch should be of type 'tf.Tensor'."
         assert isinstance(
-            input_length, tf.Tensor
-        ), "Variable input_length should be of type 'tf.Tensor'."
+            input_lengths, tf.Tensor
+        ), "Variable input_lengths should be of type 'tf.Tensor'."
         assert isinstance(
-            label_length, tf.Tensor
-        ), "Variable label_length should be of type 'tf.Tensor'."
+            target_lengths, tf.Tensor
+        ), "Variable target_lengths should be of type 'tf.Tensor'."
 
         # Computes loss for current target & predicted batches.
         current_loss = tf.keras.backend.ctc_batch_cost(
-            target_batch, predicted_batch, input_length, label_length
+            target_batch, predicted_batch, input_lengths, target_lengths
         )
         return tf.reduce_mean(current_loss)
 
@@ -246,8 +247,8 @@ class Train(object):
         self,
         target_batch: tf.Tensor,
         predicted_batch: tf.Tensor,
-        input_length: tf.Tensor,
-        label_length: tf.Tensor,
+        input_lengths: tf.Tensor,
+        label_lengths: tf.Tensor,
     ) -> tf.Tensor:
         """Computes Character Error Rate (CER) using actual & predicted value in current batch.
 
@@ -256,8 +257,8 @@ class Train(object):
         Args:
             target_batch: A tensor for target batch of generated mask images.
             predicted_batch: A tensor for batch of outputs predicted by the model for input batch.
-            input_length: A tensor for the batch of input sequence length per sample (before padding).
-            target_length: A tensor for the batch of target sequence length per sample (before padding).
+            input_lengths: A tensor for the batch of input sequence length per sample (before padding).
+            target_lengths: A tensor for the batch of target sequence length per sample (before padding).
 
         Returns:
             A tensor for the CER computed on comparing target & predicted batches.
@@ -271,20 +272,20 @@ class Train(object):
             predicted_batch, tf.Tensor
         ), "Variable predicted_batch should be of type 'tf.Tensor'."
         assert isinstance(
-            input_length, tf.Tensor
-        ), "Variable input_length should be of type 'tf.Tensor'."
+            input_lengths, tf.Tensor
+        ), "Variable input_lengths should be of type 'tf.Tensor'."
         assert isinstance(
-            label_length, tf.Tensor
-        ), "Variable label_length should be of type 'tf.Tensor'."
+            label_lengths, tf.Tensor
+        ), "Variable label_lengths should be of type 'tf.Tensor'."
 
         # Greedy decodes the predicted batch into sparse tensor.
         sparse_decoded_predicted_batch, _ = tf.keras.backend.ctc_decode(
-            predicted_batch, input_length, greedy=True
+            predicted_batch, input_lengths, greedy=True
         )
 
         # Converts target batch into sparse tensor.
         sparse_target_batch = tf.keras.backend.ctc_label_dense_to_sparse(
-            target_batch, label_length
+            target_batch, label_lengths
         )
 
         # Computes edit distance per sample using sparse predicted & target batches.
@@ -298,8 +299,8 @@ class Train(object):
         self,
         input_batch: tf.Tensor,
         target_batch: tf.Tensor,
-        input_length: tf.Tensor,
-        label_length: tf.Tensor,
+        input_lengths: tf.Tensor,
+        label_lengths: tf.Tensor,
     ) -> None:
         """Trains the model using input & target batches.
 
@@ -308,8 +309,8 @@ class Train(object):
         Args:
             input_batch: A tensor for input batch of processed images.
             target_batch: A tensor for target batch of generated mask images.
-            input_length: A tensor for the batch of input sequence length per sample (before padding).
-            target_length: A tensor for the batch of target sequence length per sample (before padding).
+            input_lengths: A tensor for the batch of input sequence length per sample (before padding).
+            target_lengths: A tensor for the batch of target sequence length per sample (before padding).
 
         Returns:
             None.
@@ -322,17 +323,17 @@ class Train(object):
             target_batch, tf.Tensor
         ), "Variable target_batch should be of type 'tf.Tensor'."
         assert isinstance(
-            input_length, tf.Tensor
-        ), "Variable input_length should be of type 'tf.Tensor'."
+            input_lengths, tf.Tensor
+        ), "Variable input_lengths should be of type 'tf.Tensor'."
         assert isinstance(
-            label_length, tf.Tensor
-        ), "Variable label_length should be of type 'tf.Tensor'."
+            label_lengths, tf.Tensor
+        ), "Variable label_lengths should be of type 'tf.Tensor'."
 
         # Computes predicted audio transcriptions for all audio files in the batch, and computes batch loss.
         with tf.GradientTape() as tape:
             predicted_batch = self.model([input_batch], training=True)
             batch_loss = self.compute_loss(
-                target_batch, predicted_batch, input_length, label_length
+                target_batch, predicted_batch, input_lengths, label_lengths
             )
 
         # Computes gradients using loss. Apply the computed gradients on model variables using optimizer.
@@ -341,7 +342,7 @@ class Train(object):
 
         # Computes Character Error Rate (CER) using actual & predicted value in current batch.
         batch_cer = self.compute_cer(
-            target_batch, predicted_batch, input_length, label_length
+            target_batch, predicted_batch, input_lengths, label_lengths
         )
 
         # Computes mean for loss, and character error rate score.
@@ -352,8 +353,8 @@ class Train(object):
         self,
         input_batch: tf.Tensor,
         target_batch: tf.Tensor,
-        input_length: tf.Tensor,
-        label_length: tf.Tensor,
+        input_lengths: tf.Tensor,
+        label_lengths: tf.Tensor,
     ) -> None:
         """Validates the model using input & target batches.
 
@@ -362,8 +363,8 @@ class Train(object):
         Args:
             input_batch: A tensor for input batch of processed images.
             target_batch: A tensor for target batch of generated mask images.
-            input_length: A tensor for the batch of input sequence length per sample (before padding).
-            target_length: A tensor for the batch of target sequence length per sample (before padding).
+            input_lengths: A tensor for the batch of input sequence length per sample (before padding).
+            target_lengths: A tensor for the batch of target sequence length per sample (before padding).
 
         Returns:
             None.
@@ -376,21 +377,21 @@ class Train(object):
             target_batch, tf.Tensor
         ), "Variable target_batch should be of type 'tf.Tensor'."
         assert isinstance(
-            input_length, tf.Tensor
-        ), "Variable input_length should be of type 'tf.Tensor'."
+            input_lengths, tf.Tensor
+        ), "Variable input_lengths should be of type 'tf.Tensor'."
         assert isinstance(
-            label_length, tf.Tensor
-        ), "Variable label_length should be of type 'tf.Tensor'."
+            label_lengths, tf.Tensor
+        ), "Variable label_lengths should be of type 'tf.Tensor'."
 
         # Computes predicted audio transcriptions for all audio files in the batch, and computes batch loss.
         predicted_batch = self.model([input_batch], training=True)
         batch_loss = self.compute_loss(
-            target_batch, predicted_batch, input_length, label_length
+            target_batch, predicted_batch, input_lengths, label_lengths
         )
 
         # Computes Character Error Rate (CER) using actual & predicted value in current batch.
         batch_cer = self.compute_cer(
-            target_batch, predicted_batch, input_length, label_length
+            target_batch, predicted_batch, input_lengths, label_lengths
         )
 
         # Computes mean for loss, and character error rate score.
