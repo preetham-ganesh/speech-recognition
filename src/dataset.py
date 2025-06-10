@@ -368,7 +368,7 @@ class Dataset(object):
             texts: A list of strings for transcriptions of audio files in current batch.
 
         Returns:
-            A list of tensors for input & target batches of spectrograms & tokenized texts.
+            A list of tensors for input & target batches, and input & target lengths of spectrograms & tokenized texts.
         """
         # Checks types & values of arguments.
         assert isinstance(
@@ -376,30 +376,36 @@ class Dataset(object):
         ), "Variable file_paths should be of type 'list'."
         assert isinstance(texts, list), "Variable texts should be of type 'list'."
 
-        # Creates empty lists to store input spectrograms & tokenized texts.
+        # Creates empty lists to store input spectrograms, & tokenized texts.
         input_spectrograms, target_batch = list(), list()
 
+        # Creates empty lists to store input & target lengths (before padding).
+        input_lengths, target_lengths = list(), list()
+
         # Iterates across file paths in current batch.
-        max_spectrogram_length = 0
         for f_id in range(len(file_paths)):
 
             # Loads and preprocesses an audio file into a log-Mel spectrogram.
             spectrogram = self.load_preprocess_audio(str(file_paths[f_id], "UTF-8"))
 
-            # Updates max spectrogram length if current length is higher.
-            max_spectrogram_length = max(max_spectrogram_length, spectrogram.shape[0])
+            # Tokenizes text to convert into ids using trained tokenizer.
+            sequence = self.tokenize_text(str(texts[f_id], "UTF-8"))
+
+            # Appends input & target lengths list with current spectrogram & tokenized sequence lengths.
+            input_lengths.append(spectrogram.shape[0])
+            target_lengths.append(len(sequence))
 
             # Appends extracted spectrogram for current file into list.
             input_spectrograms.append(spectrogram)
 
             # Appends tokenized & encoded version of text for current file.
-            target_batch.append(self.tokenize_text(str(texts[f_id], "UTF-8")))
+            target_batch.append(sequence)
 
         # Creates an empty numpy array to store padded versions of spectrogram for all audio files in current batch.
         input_batch = np.zeros(
             (
                 len(input_spectrograms),
-                max_spectrogram_length,
+                max(input_lengths),
                 input_spectrograms[0].shape[1],
             )
         )
@@ -416,7 +422,9 @@ class Dataset(object):
             target_batch, padding="post", dtype="int32"
         )
 
-        # Converts input & target batches into tensor of data type float32 & int32.
+        # Converts input & target batches, and input & target lengths into tensor of data type float32 & int32.
         input_batch = tf.convert_to_tensor(input_batch, dtype=tf.float32)
         target_batch = tf.convert_to_tensor(target_batch, dtype=tf.int32)
-        return [input_batch, target_batch]
+        input_lengths = tf.convert_to_tensor(input_lengths, dtype=tf.int32)
+        target_lengths = tf.convert_to_tensor(target_lengths, dtype=tf.int32)
+        return [input_batch, target_batch, input_lengths, target_lengths]
