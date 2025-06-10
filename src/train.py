@@ -244,57 +244,6 @@ class Train(object):
         )
         return tf.reduce_mean(current_loss)
 
-    def compute_cer(
-        self,
-        target_batch: tf.Tensor,
-        predicted_batch: tf.Tensor,
-        input_lengths: tf.Tensor,
-        label_lengths: tf.Tensor,
-    ) -> tf.Tensor:
-        """Computes Character Error Rate (CER) using actual & predicted value in current batch.
-
-        Computes Character Error Rate (CER) using actual & predicted value in current batch.
-
-        Args:
-            target_batch: A tensor for target batch of generated mask images.
-            predicted_batch: A tensor for batch of outputs predicted by the model for input batch.
-            input_lengths: A tensor for the batch of input sequence length per sample (before padding).
-            target_lengths: A tensor for the batch of target sequence length per sample (before padding).
-
-        Returns:
-            A tensor for the CER computed on comparing target & predicted batches.
-
-        """
-        # Asserts type & value of the arguments.
-        assert isinstance(
-            target_batch, tf.Tensor
-        ), "Variable target_batch should be of type 'tf.Tensor'."
-        assert isinstance(
-            predicted_batch, tf.Tensor
-        ), "Variable predicted_batch should be of type 'tf.Tensor'."
-        assert isinstance(
-            input_lengths, tf.Tensor
-        ), "Variable input_lengths should be of type 'tf.Tensor'."
-        assert isinstance(
-            label_lengths, tf.Tensor
-        ), "Variable label_lengths should be of type 'tf.Tensor'."
-
-        # Greedy decodes the predicted batch into sparse tensor.
-        sparse_decoded_predicted_batch, _ = tf.keras.backend.ctc_decode(
-            predicted_batch, input_lengths, greedy=True
-        )
-
-        # Converts target batch into sparse tensor.
-        sparse_target_batch = tf.keras.backend.ctc_label_dense_to_sparse(
-            target_batch, label_lengths
-        )
-
-        # Computes edit distance per sample using sparse predicted & target batches.
-        cer = tf.edit_distance(
-            sparse_decoded_predicted_batch[0], sparse_target_batch, normalize=True
-        )
-        return tf.reduced_mean(cer)
-
     @tf.function
     def train_step(
         self,
@@ -385,7 +334,7 @@ class Train(object):
         ), "Variable label_lengths should be of type 'tf.Tensor'."
 
         # Computes predicted audio transcriptions for all audio files in the batch, and computes batch loss.
-        predicted_batch = self.model([input_batch], training=True)
+        predicted_batch = self.model([input_batch], training=False)
         batch_loss = self.compute_loss(
             target_batch, predicted_batch, input_lengths, label_lengths
         )
