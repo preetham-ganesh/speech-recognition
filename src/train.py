@@ -415,52 +415,6 @@ class Train(object):
         self.train_cer.reset_state()
         self.validation_cer.reset_state()
 
-    def train_model_per_epoch(self, epoch: int) -> None:
-        """Trains the model using train dataset for current epoch.
-
-        Trains the model using train dataset for current epoch.
-
-        Args:
-            epoch: An integer for the number of current epoch.
-
-        Returns:
-            None.
-        """
-        # Asserts type & value of the arguments.
-        assert isinstance(epoch, int), "Variable epoch should be of type 'int'."
-
-        # Iterates across batches in the train dataset.
-        for batch, (file_paths, texts) in enumerate(
-            self.dataset.train_dataset.take(self.dataset.n_train_steps_per_epoch)
-        ):
-            batch_start_time = time.time()
-
-            # Loads and preprocesses a batch of audio files and corresponding text labels.
-            input_batch, target_batch, input_lengths, target_lengths = (
-                self.dataset.load_input_target_batches(
-                    list(file_paths.numpy()), list(texts.numpy())
-                )
-            )
-
-            # Trains the model using the current input and target batch.
-            self.train_step(input_batch, target_batch)
-            batch_end_time = time.time()
-            print(
-                f"Epoch={epoch + 1}, Batch={batch}, Train loss={self.train_loss.result().numpy():.3f}, "
-                + f"Train CER={self.train_cer.result().numpy():.3f}, "
-                + f"Time taken={(batch_end_time - batch_start_time):.3f} sec."
-            )
-
-        # Logs train metrics for current epoch.
-        mlflow.log_metrics(
-            {
-                "train_loss": self.train_loss.result().numpy(),
-                "train_cer": self.train_cer.result().numpy(),
-            },
-            step=epoch,
-        )
-        print()
-
     def validate_model(self) -> None:
         """Validates the model using the current validation dataset.
 
