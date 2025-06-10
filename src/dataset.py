@@ -225,6 +225,19 @@ class Dataset(object):
                     )
                     self.dataset_info[split_name]["text"].append(text)
 
+        # If split is train, and dataset size is 'mini' in model configuration then only selects 30% of original data.
+        if (
+            split_name == "train"
+            and self.model_configuration["dataset"]["size"] == "mini"
+        ):
+            n_examples = int(len(self.dataset_info[split_name]["file_path"]) * 0.3)
+            self.dataset_info[split_name]["file_path"] = self.dataset_info[split_name][
+                "file_path"
+            ][:n_examples]
+            self.dataset_info[split_name]["text"] = self.dataset_info[split_name][
+                "text"
+            ][:n_examples]
+
         print(
             f"No. of examples in the {split_name} data split: {len(self.dataset_info[split_name]['file_path'])}"
         )
