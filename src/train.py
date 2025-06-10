@@ -347,3 +347,52 @@ class Train(object):
         # Computes mean for loss, and character error rate score.
         self.train_loss(batch_loss)
         self.train_cer(batch_cer)
+
+    def validation_step(
+        self,
+        input_batch: tf.Tensor,
+        target_batch: tf.Tensor,
+        input_length: tf.Tensor,
+        label_length: tf.Tensor,
+    ) -> None:
+        """Validates the model using input & target batches.
+
+        Validates the model using input & target batches.
+
+        Args:
+            input_batch: A tensor for input batch of processed images.
+            target_batch: A tensor for target batch of generated mask images.
+            input_length: A tensor for the batch of input sequence length per sample (before padding).
+            target_length: A tensor for the batch of target sequence length per sample (before padding).
+
+        Returns:
+            None.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(
+            input_batch, tf.Tensor
+        ), "Variable input_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            target_batch, tf.Tensor
+        ), "Variable target_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            input_length, tf.Tensor
+        ), "Variable input_length should be of type 'tf.Tensor'."
+        assert isinstance(
+            label_length, tf.Tensor
+        ), "Variable label_length should be of type 'tf.Tensor'."
+
+        # Computes predicted audio transcriptions for all audio files in the batch, and computes batch loss.
+        predicted_batch = self.model([input_batch], training=True)
+        batch_loss = self.compute_loss(
+            target_batch, predicted_batch, input_length, label_length
+        )
+
+        # Computes Character Error Rate (CER) using actual & predicted value in current batch.
+        batch_cer = self.compute_cer(
+            target_batch, predicted_batch, input_length, label_length
+        )
+
+        # Computes mean for loss, and character error rate score.
+        self.validation_loss(batch_loss)
+        self.validation_cer(batch_cer)
