@@ -91,6 +91,7 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
     print(
         f"No. of examples in the {split_name} data split: {len(dataset_info['file_path'])}"
     )
+    return dataset_info
 
 
 def load_preprocess_audio(file_path: str, n_mels: int) -> np.ndarray:
@@ -119,3 +120,22 @@ def load_preprocess_audio(file_path: str, n_mels: int) -> np.ndarray:
     # Transposes: librosa spectrogram from (freq_bins, time_steps) -> (time_steps, freq_bins).
     log_spectrogram = log_spectrogram.T
     return log_spectrogram
+
+
+def preprocess_text(text: str) -> str:
+    """Preprocesses text string by stripping whitespace and converting to lowercase.
+
+    Preprocesses text string by stripping whitespace and converting to lowercase.
+
+    Args:
+        text: A string for the transcription text in current file that should be processed.
+
+    Returns:
+        A processed version of the transcription text.
+    """
+    # Strip leading & trailing whitespace.
+    text = text.strip()
+
+    # Converts all characters in text to lowercase.
+    text = text.lower()
+    return text
