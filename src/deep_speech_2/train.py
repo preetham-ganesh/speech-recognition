@@ -427,3 +427,79 @@ class Train(object):
         else:
             return False
         return True
+
+    def fit(self) -> None:
+        """Trains & validates the loaded model using train & validation dataset.
+
+        Trains & validates the loaded model using train & validation dataset.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Initializes TensorFlow trackers which computes the mean of all metrics.
+        self.initialize_metric_trackers()
+
+        # Iterates across epochs for training the neural network model.
+        for _ in range(self.model_configuration["model"]["epochs"]):
+
+            # Iterates across batches in the train dataset.
+            for batch, (file_paths, texts) in enumerate(
+                self.dataset.train_dataset.take(self.dataset.n_train_steps_per_epoch)
+            ):
+                batch_start_time = time.time()
+
+                # Loads and preprocesses a batch of audio files and corresponding text labels.
+                input_batch, target_batch, target_lengths = (
+                    self.dataset.load_input_target_batches(
+                        list(file_paths.numpy()), list(texts.numpy())
+                    )
+                )
+                print(round(time.time() - batch_start_time, 3))
+
+                # Trains the model using the current input and target batch.
+                self.train_step(input_batch, target_batch, target_lengths)
+                batch_end_time = time.time()
+                print(
+                    f"Step={self.step}, Batch={batch}, Train loss={self.train_loss.result().numpy():.3f}, "
+                    + f"Time taken={(batch_end_time - batch_start_time):.3f} sec."
+                )
+                print(round(time.time() - batch_start_time, 3))
+
+                # Logs train metrics for current epoch.
+                mlflow.log_metrics(
+                    {"train_loss": self.train_loss.result().numpy()},
+                    step=self.step,
+                )
+
+                # If step is not 0, and step is divisible by step break, then validates the model.
+                if (
+                    self.step != 0
+                    and self.step % self.model_configuration["model"]["step_break"] == 0
+                ):
+                    print()
+                    self.validate_model()
+                    print(
+                        f"Step={self.step}, Train loss={self.train_loss.result().numpy():.3f}, "
+                        + f"Validation loss={self.validation_loss.result().numpy():.3f}"
+                    )
+
+                    # Stops the model from learning further if the performance has not improved from previous epoch.
+                    model_training_status = self.early_stopping()
+                    if not model_training_status:
+                        print(
+                            "Model did not improve after 4th time. Model stopped from training further."
+                        )
+                        print()
+                        return
+
+                    # Resets states for training and validation metrics before the start of each epoch.
+                    self.reset_metrics_trackers()
+                    print()
+
+                # If the model training has completed max train steps, then stops the model from training further.
+                if self.step == self.model_configuration["model"]["max_steps"]:
+                    return
+                self.step += 1
