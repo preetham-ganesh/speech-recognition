@@ -12,6 +12,7 @@ warnings.filterwarnings("ignore")
 
 import librosa
 import numpy as np
+import pandas as pd
 
 from src.utils import check_directory_path_existence, load_text_file
 
@@ -56,7 +57,7 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
     )
 
     # Iterates across directories in the extracted data directory.
-    dataset_info = {"file_path": list(), "text": list()}
+    dataset_info = list()
     for dir_0 in os.listdir(extracted_data_directory_path):
 
         # Iterates across directory in current directory.
@@ -78,19 +79,18 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
                     continue
 
                 # Appends absolute file path & transcription text for current file into dataset info.
-                dataset_info[split_name]["file_path"].append(
-                    os.path.join(
-                        extracted_data_directory_path,
-                        dir_0,
-                        dir_1,
-                        f"{file_name}.flac",
-                    )
+                dataset_info.append(
+                    {
+                        "file_path": os.path.join(
+                            extracted_data_directory_path,
+                            dir_0,
+                            dir_1,
+                            f"{file_name}.flac",
+                        ),
+                        "text": text,
+                    }
                 )
-                dataset_info[split_name]["text"].append(text)
-
-    print(
-        f"No. of examples in the {split_name} data split: {len(dataset_info['file_path'])}"
-    )
+    print(f"No. of examples in the {split_name} data split: {len(dataset_info)}")
     return dataset_info
 
 
@@ -139,3 +139,80 @@ def preprocess_text(text: str) -> str:
     # Converts all characters in text to lowercase.
     text = text.lower()
     return text
+
+
+def preprocess_dataset(dataset_version: str, split_name: str, n_mels: int) -> None:
+    """Preprocesses audio files & their transcriptions in the current data split.
+
+    Preprocesses audio files & their transcriptions in the current data split.
+
+    Args:
+        dataset_version: A string for the version of the processed dataset.
+        split_name: A string for the name of the current dataset split.
+        n_mels: An integer for the no. of frequency bins to be computed.
+
+    Returns:
+        None.
+    """
+    # Asserts type & value of the arguments.
+    assert isinstance(
+        dataset_version, str
+    ), "Variable dataset_version should be of type 'str'."
+    assert isinstance(split_name, str) and split_name in [
+        "train",
+        "validation",
+        "test",
+    ], "Variable split_name should be of type 'str' and have value as 'train', 'validation' or 'test'."
+    assert isinstance(n_mels, int), "Variable n_mels should be of type 'int'."
+
+    # Loads file paths and transcription texts for a given dataset split (train, validation & test).
+    original_dataset_info = load_dataset_file_paths(split_name)
+
+    # Checks if the following directory path exists.
+    processed_data_directory_path = check_directory_path_existence(
+        os.path.join(
+            "data", "processed_data", "librispeech", f"v{dataset_version}", split_name
+        )
+    )
+
+    # Iterates across file paths & transcription texts in original dataset.
+    processed_dataset_info = list()
+    for r_id, row in enumerate(original_dataset_info):
+
+        # Loads and preprocesses an audio file into a log-Mel spectrogram.
+        log_spectrogram = load_preprocess_audio(row["file_path"], n_mels)
+
+        # Preprocesses text string by stripping whitespace and converting to lowercase.
+        processed_text = preprocess_dataset(row["text"])
+
+        # Saves the log mel spectrogram as NumPy array
+        file_path = os.path.join(processed_data_directory_path, f"{r_id}.npy")
+        with open(file_path, "wb") as f:
+            np.save(f, log_spectrogram)
+            f.close()
+
+        # Appends the processed file info as dictionary to the list.
+        processed_dataset_info.append(
+            {
+                "file_path": file_path,
+                "text": processed_text,
+                "n_time_frames": log_spectrogram.shape[0],
+            }
+        )
+
+        if r_id != 0 and r_id % 1000 == 0:
+            print(
+                f"Finished processing {((r_id / len(original_dataset_info)) * 100):.3f}% in the {split_name} data"
+                + " split."
+            )
+    print()
+
+    # Converts list of dictionaries into pandas dataframe.
+    processed_dataset_info = pd.DataFrame.from_records(processed_dataset_info)
+    print(
+        f"No. of examples in the {split_name} data split: {len(processed_dataset_info)}"
+    )
+    print(
+        f"Maximum time frames in the {split_name} data split: {max(processed_dataset_info['n_time_frames'])}"
+    )
+    print()
