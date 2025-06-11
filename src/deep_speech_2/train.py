@@ -3,6 +3,7 @@ import os
 import mlflow
 
 from src.utils import load_json_file
+from src.deep_speech_2.dataset import Dataset
 
 
 class Train(object):
@@ -57,3 +58,31 @@ class Train(object):
         )
         mlflow.log_param("rnn_units", self.model_configuration["model"]["rnn_units"])
         mlflow.log_param("rnn_blocks", self.model_configuration["model"]["rnn_blocks"])
+
+    def load_dataset(self) -> None:
+        """Loads audio file paths & transcriptions in the dataset.
+
+        Loads audio file paths & transcriptions in the dataset.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Creates object attributes for the Dataset class.
+        self.dataset = Dataset(self.model_configuration)
+
+        # Loads file paths and transcription texts for the LibriSpeech dataset.
+        self.dataset.load_dataset_info()
+
+        # Zips file paths & transcriptions into single tensor dataset & slices them based on batch size.
+        self.dataset.shuffle_slice_dataset()
+
+        # Trains a simple character-level tokenizer for CTC-based speech recognition.
+        self.dataset.train_tokenizer()
+
+        # Updates model configuration with vocab size.
+        self.model_configuration["model"]["vocab_size"] = (
+            len(self.dataset.char_to_id) + 1
+        )
