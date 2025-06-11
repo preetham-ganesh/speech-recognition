@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 import tensorflow as tf
+import numpy as np
 
 from src.utils import check_directory_path_existence
 
@@ -164,3 +165,89 @@ class Dataset(object):
         self.id_to_char[c_id + 2] = " "
         self.char_to_id["'"] = c_id + 3
         self.id_to_char[c_id + 3] = "'"
+
+    def tokenize_text(self, text: str) -> List[int]:
+        """Tokenizes text to convert into ids using trained tokenizer.
+
+        Tokenizes text to convert into ids using trained tokenizer.
+
+        Args:
+            text: A string for the target text that should be tokenized.
+
+        Returns:
+            A list of integers for the tokenized & encoded version of the text.
+        """
+        # Checks types & values of arguments.
+        assert isinstance(text, str), "Variable text should be of type 'str'."
+
+        # Tokenizes characters into ids based on trained tokenizer.
+        return [self.char_to_id[c] for c in text]
+
+    def load_input_target_batches(
+        self, file_paths: List[str], texts: List[str]
+    ) -> List[tf.Tensor]:
+        """Loads and preprocesses a batch of audio files and corresponding text labels.
+
+        Loads and preprocesses a batch of audio files and corresponding text labels.
+
+        Args:
+            file_paths: A list of strings for locations of audio files in current batch.
+            texts: A list of strings for transcriptions of audio files in current batch.
+
+        Returns:
+            A list of tensors for input & target batches, and target lengths of spectrograms & tokenized texts.
+        """
+        # Checks types & values of arguments.
+        assert isinstance(
+            file_paths, list
+        ), "Variable file_paths should be of type 'list'."
+        assert isinstance(texts, list), "Variable texts should be of type 'list'."
+
+        # Creates empty lists to store input spectrograms, tokenized texts, and target_lengths.
+        input_spectrograms, target_batch, target_lengths = list(), list(), list()
+
+        # Iterates across file paths in current batch.
+        for f_id in range(len(file_paths)):
+
+            # Loads previously saved spectrogram for current audio file.
+            spectrogram = np.load(str(file_paths[f_id], "UTF-8"))
+
+            # Tokenizes text to convert into ids using trained tokenizer.
+            sequence = self.tokenize_text(str(texts[f_id], "UTF-8"))
+
+            # Appends target lengths list with tokenized sequence length.
+            target_lengths.append(len(sequence))
+
+            # Appends extracted spectrogram for current file into list.
+            input_spectrograms.append(spectrogram)
+
+            # Appends tokenized & encoded version of text for current file.
+            target_batch.append(sequence)
+
+        # Creates an empty numpy array to store padded versions of spectrogram for all audio files in current batch.
+        input_batch = np.zeros(
+            (
+                len(input_spectrograms),
+                self.model_configuration["model"]["max_spectrogram_length"],
+                self.model_configuration["model"]["n_mels"],
+            )
+        )
+
+        # Copies loaded spectrogram for all audio files in current batch to input batch array.
+        for f_id, spectrogram in enumerate(input_spectrograms):
+            input_batch[f_id, : spectrogram.shape[0], :] = spectrogram
+
+        # Adds extra dimension to the input batch, input & target lengths.
+        input_batch = tf.expand_dims(input_batch, axis=-1)
+
+        # Pads input & target batch tensors with 0 at the end.
+        target_batch = tf.keras.preprocessing.sequence.pad_sequences(
+            target_batch, padding="post", dtype="int32"
+        )
+
+        # Converts input & target batches, and input & target lengths into tensor of data type float32 & int32.
+        input_batch = tf.convert_to_tensor(input_batch, dtype=tf.float64)
+        input_batch = tf.cast(input_batch, dtype=tf.float32)
+        target_batch = tf.convert_to_tensor(target_batch, dtype=tf.int32)
+        target_lengths = tf.convert_to_tensor(target_lengths, dtype=tf.int32)
+        return [input_batch, target_batch, target_lengths]
