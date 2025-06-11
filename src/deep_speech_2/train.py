@@ -1,4 +1,5 @@
 import os
+import time
 
 import mlflow
 import tensorflow as tf
@@ -325,3 +326,44 @@ class Train(object):
         """
         self.train_loss.reset_state()
         self.validation_loss.reset_state()
+
+    def validate_model(self) -> None:
+        """Validates the model using the current validation dataset.
+
+        Validates the model using the current validation dataset.
+
+        Args:
+            None.
+
+        Returns:
+            None
+        """
+        # Iterates across batches in the validation dataset.
+        for batch, (file_paths, texts) in enumerate(
+            self.dataset.validation_dataset.take(
+                self.dataset.n_validation_steps_per_epoch
+            )
+        ):
+            batch_start_time = time.time()
+
+            # Loads and preprocesses a batch of audio files and corresponding text labels.
+            input_batch, target_batch, target_lengths = (
+                self.dataset.load_input_target_batches(
+                    list(file_paths.numpy()), list(texts.numpy())
+                )
+            )
+
+            # Validates the model using the current input and target batch.
+            self.validation_step(input_batch, target_batch, target_lengths)
+            batch_end_time = time.time()
+            print(
+                f"Step={self.step}, Batch={batch}, Validation loss={self.validation_loss.result().numpy():.3f}, "
+                + f"Time taken={(batch_end_time - batch_start_time):.3f} sec."
+            )
+
+        # Logs train metrics for current epoch.
+        mlflow.log_metrics(
+            {"validation_loss": self.validation_loss.result().numpy()},
+            step=self.step,
+        )
+        print()
