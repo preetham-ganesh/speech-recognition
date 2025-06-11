@@ -275,3 +275,39 @@ class Train(object):
 
         # Computes mean for loss.
         self.train_loss(batch_loss)
+
+    def validation_step(
+        self,
+        input_batch: tf.Tensor,
+        target_batch: tf.Tensor,
+        target_lengths: tf.Tensor,
+    ) -> None:
+        """Validates the model using input & target batches.
+
+        Validates the model using input & target batches.
+
+        Args:
+            input_batch: A tensor for input batch of processed images.
+            target_batch: A tensor for target batch of generated mask images.
+            target_lengths: A tensor for the batch of target sequence length per sample (before padding).
+
+        Returns:
+            None.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(
+            input_batch, tf.Tensor
+        ), "Variable input_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            target_batch, tf.Tensor
+        ), "Variable target_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            target_lengths, tf.Tensor
+        ), "Variable target_lengths should be of type 'tf.Tensor'."
+
+        # Computes predicted audio transcriptions for all audio files in the batch, and computes batch loss.
+        predicted_batch = self.model([input_batch], training=False)
+        batch_loss = self.compute_loss(target_batch, predicted_batch, target_lengths)
+
+        # Computes mean for loss.
+        self.validation_loss(batch_loss)
