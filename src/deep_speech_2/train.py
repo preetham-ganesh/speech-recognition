@@ -3,7 +3,7 @@ import os
 import mlflow
 import tensorflow as tf
 
-from src.utils import load_json_file
+from src.utils import load_json_file, check_directory_path_existence
 from src.deep_speech_2.dataset import Dataset
 from src.deep_speech_2.model import DeepSpeech2
 
@@ -85,6 +85,7 @@ class Train(object):
         self.dataset.train_tokenizer()
 
         # Adds trained tokenizer to model configuration.
+        self.model_configuration["tokenizer"] = dict()
         self.model_configuration["tokenizer"]["char_to_id"] = self.dataset.char_to_id
         self.model_configuration["tokenizer"]["id_to_char"] = self.dataset.id_to_char
 
@@ -132,3 +133,44 @@ class Train(object):
         )
         print("Finished loading model for current configuration.")
         print()
+
+    def generate_model_summary_and_plot(self, plot: bool) -> None:
+        """Generates summary & plot for loaded model.
+
+        Generates summary & plot for loaded model.
+
+        Args:
+            pool: A boolean value to whether generate model plot or not.
+
+        Returns:
+            None.
+        """
+        # Compiles the model to log the model summary.
+        model_summary = list()
+        self.model.summary(print_fn=lambda x: model_summary.append(x))
+        model_summary = "\n".join(model_summary)
+        print(model_summary)
+        mlflow.log_text(
+            model_summary, os.path.join(f"v{self.model_version}", "model_summary.txt")
+        )
+
+        # Creates the following directory path if it does not exist.
+        self.reports_directory_path = check_directory_path_existence(
+            os.path.join("models", "deep_speech_2", f"v{self.model_version}", "reports")
+        )
+
+        # Plots the model & saves it as a PNG file.
+        if plot:
+            tf.keras.utils.plot_model(
+                self.model,
+                os.path.join(self.reports_directory_path, "model_plot.png"),
+                show_shapes=True,
+                show_layer_names=True,
+                expand_nested=True,
+            )
+
+            # Logs the saved model plot PNG file.
+            mlflow.log_artifact(
+                os.path.join(self.reports_directory_path, "model_plot.png"),
+                f"v{self.model_version}",
+            )
