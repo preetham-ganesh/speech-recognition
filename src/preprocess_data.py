@@ -10,6 +10,9 @@ sys.path.append(BASE_PATH)
 warnings.filterwarnings("ignore")
 
 
+import librosa
+import numpy as np
+
 from src.utils import check_directory_path_existence, load_text_file
 
 from typing import Dict, List
@@ -74,10 +77,6 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
                 except ValueError:
                     continue
 
-                # Converts characters in text into lowercase, and removes leading & trailing whitespaces.
-                text = text.lower()
-                text = text.strip()
-
                 # Appends absolute file path & transcription text for current file into dataset info.
                 dataset_info[split_name]["file_path"].append(
                     os.path.join(
@@ -92,3 +91,31 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
     print(
         f"No. of examples in the {split_name} data split: {len(dataset_info['file_path'])}"
     )
+
+
+def load_preprocess_audio(file_path: str, n_mels: int) -> np.ndarray:
+    """Loads and preprocesses an audio file into a log-Mel spectrogram.
+
+    Loads and preprocesses an audio file into a log-Mel spectrogram.
+
+    Args:
+        file_path: A string for the absolute path of the file location.
+        n_mels: An integer for the no. of frequency bins to be computed.
+
+    Returns:
+        A NumPy array for the log-mel spectrogram loaded from the audio file.
+    """
+    # Asserts type & value of the arguments.
+    assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
+    assert isinstance(n_mels, int), "Variable n_mels should be of type 'int'."
+
+    # Loads audio using the file path, with sample rate at 16kHz.
+    y, sr = librosa.load(file_path, sr=16000)
+
+    # Computes log-mel spectrogram for the loaded audio file.
+    spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels)
+    log_spectrogram = librosa.power_to_db(spectrogram, ref=np.max)
+
+    # Transposes: librosa spectrogram from (freq_bins, time_steps) -> (time_steps, freq_bins).
+    log_spectrogram = log_spectrogram.T
+    return log_spectrogram
