@@ -311,3 +311,17 @@ class Train(object):
 
         # Computes mean for loss.
         self.validation_loss(batch_loss)
+
+    def reset_metrics_trackers(self) -> None:
+        """Resets states for trackers before the start of each epoch.
+
+        Resets states for trackers before the start of each epoch.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        self.train_loss.reset_state()
+        self.validation_loss.reset_state()
