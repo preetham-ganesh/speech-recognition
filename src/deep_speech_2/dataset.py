@@ -58,9 +58,9 @@ class Dataset(object):
         # Loads the processed dataset info for train split.
         self.dataset_info["train"] = pd.read_csv(
             os.path.join(processed_data_directory_path, "train", "dataset_info.csv")
-        ).to_dict()
+        )
         print(
-            f"No. of examples in the train data split: {len(self.dataset_info['train']['file_path'])}"
+            f"No. of examples in the train data split: {len(self.dataset_info['train'])}"
         )
 
         # Loads the processed dataset info for validation split.
@@ -68,17 +68,17 @@ class Dataset(object):
             os.path.join(
                 processed_data_directory_path, "validation", "dataset_info.csv"
             )
-        ).to_dict()
+        )
         print(
-            f"No. of examples in the validation data split: {len(self.dataset_info['validation']['file_path'])}"
+            f"No. of examples in the validation data split: {len(self.dataset_info['validation'])}"
         )
 
         # Loads the processed dataset info for test split.
         self.dataset_info["test"] = pd.read_csv(
             os.path.join(processed_data_directory_path, "test", "dataset_info.csv")
-        ).to_dict()
+        )
         print(
-            f"No. of examples in the test data split: {len(self.dataset_info['test']['file_path'])}"
+            f"No. of examples in the test data split: {len(self.dataset_info['test'])}"
         )
         print()
 
@@ -96,20 +96,20 @@ class Dataset(object):
         # Zips file paths & transcriptions into single tensor, and shuffles it.
         self.train_dataset = tf.data.Dataset.from_tensor_slices(
             (
-                self.dataset_info["train"]["file_path"],
-                self.dataset_info["train"]["text"],
+                list(self.dataset_info["train"]["file_path"]),
+                list(self.dataset_info["train"]["text"]),
             )
         )
         self.validation_dataset = tf.data.Dataset.from_tensor_slices(
             (
-                self.dataset_info["validation"]["file_path"],
-                self.dataset_info["validation"]["text"],
+                list(self.dataset_info["validation"]["file_path"]),
+                list(self.dataset_info["validation"]["text"]),
             )
         )
         self.test_dataset = tf.data.Dataset.from_tensor_slices(
             (
-                self.dataset_info["test"]["file_path"],
-                self.dataset_info["test"]["text"],
+                list(self.dataset_info["test"]["file_path"]),
+                list(self.dataset_info["test"]["text"]),
             )
         )
 
