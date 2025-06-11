@@ -188,3 +188,46 @@ class Train(object):
         """
         self.train_loss = tf.keras.metrics.Mean(name="train_loss")
         self.validation_loss = tf.keras.metrics.Mean(name="validation_loss")
+
+    def compute_loss(
+        self,
+        target_batch: tf.Tensor,
+        predicted_batch: tf.Tensor,
+        target_lengths: tf.Tensor,
+    ) -> tf.Tensor:
+        """Computes loss for the current batch using actual & predicted values.
+
+        Computes loss for the current batch using actual & predicted values.
+
+        Args:
+            target_batch: A tensor for target batch of generated mask images.
+            predicted_batch: A tensor for batch of outputs predicted by the model for input batch.
+            target_lengths: A tensor for the batch of target sequence length per sample (before padding).
+
+        Returns:
+            A tensor for the loss computed on comparing target & predicted batch.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(
+            target_batch, tf.Tensor
+        ), "Variable target_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            predicted_batch, tf.Tensor
+        ), "Variable predicted_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            target_lengths, tf.Tensor
+        ), "Variable target_lengths should be of type 'tf.Tensor'."
+
+        # Computes predicted lengths using sequences in predicted batch.
+        predicted_lengths = [predicted_batch.shape[1]] * predicted_batch.shape[0]
+
+        # Computes loss for current target & predicted batches.
+        current_loss = tf.nn.ctc_loss(
+            labels=target_batch,
+            logits=predicted_batch,
+            label_length=target_lengths,
+            logit_length=predicted_lengths,
+            blank_index=0,
+            logits_time_major=False,
+        )
+        return tf.reduce_mean(current_loss)
