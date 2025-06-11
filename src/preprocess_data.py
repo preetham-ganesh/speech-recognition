@@ -1,7 +1,7 @@
 import os
 import sys
 import warnings
-import time
+import argparse
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -13,6 +13,7 @@ warnings.filterwarnings("ignore")
 import librosa
 import numpy as np
 import pandas as pd
+from sklearn.utils import shuffle
 
 from src.utils import check_directory_path_existence, load_text_file
 
@@ -90,7 +91,9 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
                         "text": text,
                     }
                 )
-    print(f"No. of examples in the {split_name} data split: {len(dataset_info)}")
+    print(
+        f"Original no. of examples in the {split_name} data split: {len(dataset_info)}"
+    )
     return dataset_info
 
 
@@ -141,7 +144,9 @@ def preprocess_text(text: str) -> str:
     return text
 
 
-def preprocess_dataset(dataset_version: str, split_name: str, n_mels: int) -> None:
+def preprocess_dataset(
+    dataset_version: str, split_name: str, n_mels: int, dataset_size: str
+) -> None:
     """Preprocesses audio files & their transcriptions in the current data split.
 
     Preprocesses audio files & their transcriptions in the current data split.
@@ -150,6 +155,7 @@ def preprocess_dataset(dataset_version: str, split_name: str, n_mels: int) -> No
         dataset_version: A string for the version of the processed dataset.
         split_name: A string for the name of the current dataset split.
         n_mels: An integer for the no. of frequency bins to be computed.
+        dataset_size: A string for the size of the processed dataset.
 
     Returns:
         None.
@@ -164,9 +170,14 @@ def preprocess_dataset(dataset_version: str, split_name: str, n_mels: int) -> No
         "test",
     ], "Variable split_name should be of type 'str' and have value as 'train', 'validation' or 'test'."
     assert isinstance(n_mels, int), "Variable n_mels should be of type 'int'."
+    assert isinstance(dataset_size, str) and dataset_size in [
+        "mini",
+        "full",
+    ], "Variable dataset_size should be of type 'str' and have value as 'mini' or 'full'."
 
     # Loads file paths and transcription texts for a given dataset split (train, validation & test).
     original_dataset_info = load_dataset_file_paths(split_name)
+    print()
 
     # Checks if the following directory path exists.
     processed_data_directory_path = check_directory_path_existence(
@@ -175,15 +186,20 @@ def preprocess_dataset(dataset_version: str, split_name: str, n_mels: int) -> No
         )
     )
 
+    # If split is 'train' and dataset size is 'mini', then only 30% of processed dataset is processed.
+    n_examples = len(original_dataset_info)
+    if split_name == "train" and dataset_size == "mini":
+        n_examples = int(n_examples * 0.3)
+
     # Iterates across file paths & transcription texts in original dataset.
     processed_dataset_info = list()
-    for r_id, row in enumerate(original_dataset_info):
+    for r_id, row in enumerate(original_dataset_info[:n_examples]):
 
         # Loads and preprocesses an audio file into a log-Mel spectrogram.
         log_spectrogram = load_preprocess_audio(row["file_path"], n_mels)
 
         # Preprocesses text string by stripping whitespace and converting to lowercase.
-        processed_text = preprocess_dataset(row["text"])
+        processed_text = preprocess_text(row["text"])
 
         # Saves the log mel spectrogram as NumPy array
         file_path = os.path.join(processed_data_directory_path, f"{r_id}.npy")
@@ -202,10 +218,17 @@ def preprocess_dataset(dataset_version: str, split_name: str, n_mels: int) -> No
 
         if r_id != 0 and r_id % 1000 == 0:
             print(
-                f"Finished processing {((r_id / len(original_dataset_info)) * 100):.3f}% in the {split_name} data"
-                + " split."
+                f"Finished processing {((r_id / n_examples) * 100):.3f}% in the {split_name} data split."
             )
     print()
+
+    # Shuffles the processed dataset info.
+    processed_dataset_info = shuffle(processed_dataset_info, random_state=42)
+
+    # If split is 'train' and dataset size is 'mini', then only 30% of processed dataset is saved.
+    if split_name == "train" and dataset_size == "mini":
+        n_examples = int(len(processed_dataset_info) * 0.3)
+        processed_dataset_info = processed_dataset_info[:n_examples]
 
     # Converts list of dictionaries into pandas dataframe.
     processed_dataset_info = pd.DataFrame.from_records(processed_dataset_info)
@@ -216,3 +239,48 @@ def preprocess_dataset(dataset_version: str, split_name: str, n_mels: int) -> No
         f"Maximum time frames in the {split_name} data split: {max(processed_dataset_info['n_time_frames'])}"
     )
     print()
+
+    # Saves processed dataset info as a CSV file.
+    processed_dataset_info.to_csv(
+        os.path.join(processed_data_directory_path, "dataset_info.csv")
+    )
+
+
+def main():
+    print()
+
+    # Parses the arguments.
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-dv",
+        "--dataset_version",
+        type=str,
+        required=True,
+        help="Enter the version by which the processed dataset should be saved as.",
+    )
+    parser.add_argument(
+        "-ds",
+        "--dataset_size",
+        type=str,
+        required=True,
+        help="Enter the size of the processed dataset.",
+    )
+    parser.add_argument(
+        "-nm",
+        "--n_mels",
+        type=int,
+        required=True,
+        help="Enter the no. of frequency bins that should be computed.",
+    )
+    args = parser.parse_args()
+
+    # Preprocesses audio files & their transcriptions in the current data split.
+    preprocess_dataset(args.dataset_version, "train", args.n_mels, args.dataset_size)
+    preprocess_dataset(
+        args.dataset_version, "validation", args.n_mels, args.dataset_size
+    )
+    preprocess_dataset(args.dataset_version, "test", args.n_mels, args.dataset_size)
+
+
+if __name__ == "__main__":
+    main()
