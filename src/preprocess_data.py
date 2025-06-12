@@ -225,11 +225,6 @@ def preprocess_dataset(
     # Shuffles the processed dataset info.
     processed_dataset_info = shuffle(processed_dataset_info, random_state=42)
 
-    # If split is 'train' and dataset size is 'mini', then only 30% of processed dataset is saved.
-    if split_name == "train" and dataset_size == "mini":
-        n_examples = int(len(processed_dataset_info) * 0.3)
-        processed_dataset_info = processed_dataset_info[:n_examples]
-
     # Converts list of dictionaries into pandas dataframe.
     processed_dataset_info = pd.DataFrame.from_records(processed_dataset_info)
     print(
