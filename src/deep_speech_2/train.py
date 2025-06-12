@@ -270,7 +270,7 @@ class Train(object):
                 target_batch, predicted_batch, target_lengths
             )
 
-        # Computes gradients using loss. Apply the computed gradients on model variables using optimizer.
+        # Computes gradients using loss. Apply the computed gradients on model variables using optimizer.\
         gradients = tape.gradient(batch_loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
 
@@ -457,7 +457,6 @@ class Train(object):
                         list(file_paths.numpy()), list(texts.numpy())
                     )
                 )
-                print(round(time.time() - batch_start_time, 3))
 
                 # Trains the model using the current input and target batch.
                 self.train_step(input_batch, target_batch, target_lengths)
@@ -466,7 +465,6 @@ class Train(object):
                     f"Step={self.step}, Batch={batch}, Train loss={self.train_loss.result().numpy():.3f}, "
                     + f"Time taken={(batch_end_time - batch_start_time):.3f} sec."
                 )
-                print(round(time.time() - batch_start_time, 3))
 
                 # Logs train metrics for current epoch.
                 mlflow.log_metrics(
