@@ -1,16 +1,16 @@
 import os
 
+import pandas as pd
 import tensorflow as tf
 import numpy as np
-import librosa
 
-from src.utils import check_directory_path_existence, load_text_file
+from src.utils import check_directory_path_existence
 
 from typing import Dict, Any, List
 
 
 class Dataset(object):
-    """"""
+    """Loads the dataset based on the model configuration."""
 
     def __init__(self, model_configuration: Dict[str, Any]) -> None:
         """Creates object attributes for the Dataset class.
@@ -30,85 +30,57 @@ class Dataset(object):
 
         # Initalizes class variables.
         self.model_configuration = model_configuration
-        self.dataset_info = {
-            "train": {"file_path": list(), "text": list()},
-            "validation": {"file_path": list(), "text": list()},
-            "test": {"file_path": list(), "text": list()},
-        }
 
-    def load_dataset_file_paths(self, split_name: str) -> None:
-        """Loads file paths and transcription texts for a given dataset split (train, validation & test).
+    def load_dataset_info(self) -> None:
+        """Loads file paths and transcription texts for the LibriSpeech dataset.
 
-        Loads file paths and transcription texts for a given dataset split (train, validation & test).
+        Loads file paths and transcription texts for the LibriSpeech dataset.
 
         Args:
-            split_name: A string for the name of the current dataset split.
+            None.
 
         Returns:
             None.
         """
-        # Asserts type & value of the arguments.
-        assert isinstance(split_name, str) and split_name in [
-            "train",
-            "validation",
-            "test",
-        ], "Variable split_name should be of type 'str' and have value as 'train', 'validation' or 'test'."
-
-        # A dictionary to store the sub directory name based on the dataset split name.
-        sub_directory_names = {
-            "train": "train-clean-360",
-            "validation": "dev-clean",
-            "test": "test-clean",
-        }
+        # Creates an empty dictionary to store dataset info.
+        self.dataset_info = dict()
 
         # Checks if the following directory path exists.
-        extracted_data_directory_path = check_directory_path_existence(
+        processed_data_directory_path = check_directory_path_existence(
             os.path.join(
                 "data",
-                "extracted_data",
+                "processed_data",
                 "librispeech",
-                split_name,
-                "LibriSpeech",
-                sub_directory_names[split_name],
+                f"v{self.model_configuration['dataset']['version']}",
             )
         )
 
-        # Iterates across directories in the extracted data directory.
-        for dir_0 in os.listdir(extracted_data_directory_path):
-
-            # Iterates across directory in current directory.
-            for dir_1 in os.listdir(os.path.join(extracted_data_directory_path, dir_0)):
-
-                # Loads text file as a string.
-                transcriptions = load_text_file(
-                    f"{dir_0}-{dir_1}.trans.txt",
-                    os.path.join(extracted_data_directory_path, dir_0, dir_1),
-                ).split("\n")
-
-                # Iterates across transcriptions in current directory.
-                for file_info in transcriptions:
-
-                    # Splits file info into file name & transcription text.
-                    file_name, text = file_info.split(" ", 1)
-
-                    # Converts characters in text into lowercase, and removes leading & trailing whitespaces.
-                    text = text.lower()
-                    text = text.strip()
-
-                    # Appends absolute file path & transcription text for current file into dataset info.
-                    self.dataset_info[split_name]["file_path"].append(
-                        os.path.join(
-                            extracted_data_directory_path,
-                            dir_0,
-                            dir_1,
-                            f"{file_name}.flac",
-                        )
-                    )
-                    self.dataset_info[split_name]["text"].append(text)
-
-        print(
-            f"No. of examples in the {split_name} data split: {len(self.dataset_info[split_name]['file_path'])}"
+        # Loads the processed dataset info for train split.
+        self.dataset_info["train"] = pd.read_csv(
+            os.path.join(processed_data_directory_path, "train", "dataset_info.csv")
         )
+        print(
+            f"No. of examples in the train data split: {len(self.dataset_info['train'])}"
+        )
+
+        # Loads the processed dataset info for validation split.
+        self.dataset_info["validation"] = pd.read_csv(
+            os.path.join(
+                processed_data_directory_path, "validation", "dataset_info.csv"
+            )
+        )
+        print(
+            f"No. of examples in the validation data split: {len(self.dataset_info['validation'])}"
+        )
+
+        # Loads the processed dataset info for test split.
+        self.dataset_info["test"] = pd.read_csv(
+            os.path.join(processed_data_directory_path, "test", "dataset_info.csv")
+        )
+        print(
+            f"No. of examples in the test data split: {len(self.dataset_info['test'])}"
+        )
+        print()
 
     def shuffle_slice_dataset(self) -> None:
         """Zips file paths & transcriptions into single tensor dataset & slices them based on batch size.
@@ -124,20 +96,20 @@ class Dataset(object):
         # Zips file paths & transcriptions into single tensor, and shuffles it.
         self.train_dataset = tf.data.Dataset.from_tensor_slices(
             (
-                self.dataset_info["train"]["file_path"],
-                self.dataset_info["train"]["text"],
+                list(self.dataset_info["train"]["file_path"]),
+                list(self.dataset_info["train"]["text"]),
             )
         )
         self.validation_dataset = tf.data.Dataset.from_tensor_slices(
             (
-                self.dataset_info["validation"]["file_path"],
-                self.dataset_info["validation"]["text"],
+                list(self.dataset_info["validation"]["file_path"]),
+                list(self.dataset_info["validation"]["text"]),
             )
         )
         self.test_dataset = tf.data.Dataset.from_tensor_slices(
             (
-                self.dataset_info["test"]["file_path"],
-                self.dataset_info["test"]["text"],
+                list(self.dataset_info["test"]["file_path"]),
+                list(self.dataset_info["test"]["text"]),
             )
         )
 
@@ -194,32 +166,6 @@ class Dataset(object):
         self.char_to_id["'"] = c_id + 3
         self.id_to_char[c_id + 3] = "'"
 
-    def load_preprocess_audio(self, file_path: str, n_mels: int = 161) -> np.ndarray:
-        """Loads and preprocesses an audio file into a log-Mel spectrogram.
-
-        Loads and preprocesses an audio file into a log-Mel spectrogram.
-
-        Args:
-            file_path: A string for the absolute path of the file location.
-            n_mels: An integers for the no. of Mel frequency bins.
-
-        Returns:
-            A NumPy array for the log-mel spectrogram loaded from the audio file.
-        """
-        # Asserts type & value of the arguments.
-        assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
-
-        # Loads audio using the file path, with sample rate at 16kHz.
-        y, sr = librosa.load(file_path, sr=16000)
-
-        # Computes log-mel spectrogram for the loaded audio file.
-        spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels)
-        log_spectrogram = librosa.power_to_db(spectrogram, ref=np.max)
-
-        # Transposes: librosa spectrogram from (freq_bins, time_steps) -> (time_steps, freq_bins).
-        log_spectrogram = log_spectrogram.T
-        return log_spectrogram
-
     def tokenize_text(self, text: str) -> List[int]:
         """Tokenizes text to convert into ids using trained tokenizer.
 
@@ -249,7 +195,7 @@ class Dataset(object):
             texts: A list of strings for transcriptions of audio files in current batch.
 
         Returns:
-            A list of tensors for input & target batches of spectrograms & tokenized texts.
+            A list of tensors for input & target batches, and target lengths of spectrograms & tokenized texts.
         """
         # Checks types & values of arguments.
         assert isinstance(
@@ -257,31 +203,39 @@ class Dataset(object):
         ), "Variable file_paths should be of type 'list'."
         assert isinstance(texts, list), "Variable texts should be of type 'list'."
 
-        # Creates empty lists to store input spectrograms & tokenized texts.
-        input_spectrograms, target_batch = list(), list()
+        # Creates empty lists to store input spectrograms, tokenized texts, and target_lengths.
+        input_spectrograms, target_batch, target_lengths = list(), list(), list()
 
         # Iterates across file paths in current batch.
-        max_spectrogram_length = 0
+        epsilon = 1e-9
         for f_id in range(len(file_paths)):
 
-            # Loads and preprocesses an audio file into a log-Mel spectrogram.
-            spectrogram = self.load_preprocess_audio(str(file_paths[f_id], "UTF-8"))
+            # Loads previously saved spectrogram for current audio file.
+            spectrogram = np.load(str(file_paths[f_id], "UTF-8"))
 
-            # Updates max spectrogram length if current length is higher.
-            max_spectrogram_length = max(max_spectrogram_length, spectrogram.shape[0])
+            # Normalizes the loaded spectrogram.
+            spectrogram = (spectrogram - np.mean(spectrogram)) / (
+                np.std(spectrogram) + epsilon
+            )
+
+            # Tokenizes text to convert into ids using trained tokenizer.
+            sequence = self.tokenize_text(str(texts[f_id], "UTF-8"))
+
+            # Appends target lengths list with tokenized sequence length.
+            target_lengths.append(len(sequence))
 
             # Appends extracted spectrogram for current file into list.
             input_spectrograms.append(spectrogram)
 
             # Appends tokenized & encoded version of text for current file.
-            target_batch.append(self.tokenize_text(str(texts[f_id], "UTF-8")))
+            target_batch.append(sequence)
 
         # Creates an empty numpy array to store padded versions of spectrogram for all audio files in current batch.
         input_batch = np.zeros(
             (
                 len(input_spectrograms),
-                max_spectrogram_length,
-                input_spectrograms[0].shape[1],
+                self.model_configuration["model"]["max_spectrogram_length"],
+                self.model_configuration["model"]["n_mels"],
             )
         )
 
@@ -289,7 +243,7 @@ class Dataset(object):
         for f_id, spectrogram in enumerate(input_spectrograms):
             input_batch[f_id, : spectrogram.shape[0], :] = spectrogram
 
-        # Adds extra dimension to the input batch.
+        # Adds extra dimension to the input batch, input & target lengths.
         input_batch = tf.expand_dims(input_batch, axis=-1)
 
         # Pads input & target batch tensors with 0 at the end.
@@ -297,7 +251,9 @@ class Dataset(object):
             target_batch, padding="post", dtype="int32"
         )
 
-        # Converts input & target batches into tensor of data type float32 & int32.
-        input_batch = tf.convert_to_tensor(input_batch, dtype=tf.float32)
+        # Converts input & target batches, and input & target lengths into tensor of data type float32 & int32.
+        input_batch = tf.convert_to_tensor(input_batch, dtype=tf.float64)
+        input_batch = tf.cast(input_batch, dtype=tf.float32)
         target_batch = tf.convert_to_tensor(target_batch, dtype=tf.int32)
-        return [input_batch, target_batch]
+        target_lengths = tf.convert_to_tensor(target_lengths, dtype=tf.int32)
+        return [input_batch, target_batch, target_lengths]

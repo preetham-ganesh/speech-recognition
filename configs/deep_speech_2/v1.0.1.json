@@ -1,0 +1,23 @@
+{
+  "dataset": {
+    "name": "librispeech",
+    "size": "full",
+    "version": "1.0.1"
+  },
+  "optimizer": { "learning_rate": 0.001, "momentum": 0.9, "power": 0.5 },
+  "model": {
+    "architecture": "deep_speech_2",
+    "max_spectrogram_length": 1280,
+    "n_mels": 161,
+    "max_steps": 100000,
+    "step_break": 1000,
+    "epochs": 50,
+    "batch_size": 16,
+    "conv_filters": 32,
+    "rnn_units": 800,
+    "rnn_blocks": 5,
+    "vocab_size": 26,
+    "rate": 0.3,
+    "patience_count": 3
+  }
+}
