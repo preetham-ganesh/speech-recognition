@@ -207,10 +207,16 @@ class Dataset(object):
         input_spectrograms, target_batch, target_lengths = list(), list(), list()
 
         # Iterates across file paths in current batch.
+        epsilon = 1e-9
         for f_id in range(len(file_paths)):
 
             # Loads previously saved spectrogram for current audio file.
             spectrogram = np.load(str(file_paths[f_id], "UTF-8"))
+
+            # Normalizes the loaded spectrogram.
+            spectrogram = (spectrogram - np.mean(spectrogram)) / (
+                np.std(spectrogram) + epsilon
+            )
 
             # Tokenizes text to convert into ids using trained tokenizer.
             sequence = self.tokenize_text(str(texts[f_id], "UTF-8"))

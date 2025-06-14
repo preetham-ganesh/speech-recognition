@@ -116,8 +116,13 @@ def load_preprocess_audio(file_path: str, n_mels: int) -> np.ndarray:
     # Loads audio using the file path, with sample rate at 16kHz.
     y, sr = librosa.load(file_path, sr=16000)
 
+    # Adds audio normalization.
+    y = librosa.util.normalize(y)
+
     # Computes log-mel spectrogram for the loaded audio file.
-    spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels)
+    spectrogram = librosa.feature.melspectrogram(
+        y=y, sr=sr, n_mels=n_mels, hop_length=512, win_length=1280
+    )
     log_spectrogram = librosa.power_to_db(spectrogram, ref=np.max)
 
     # Transposes: librosa spectrogram from (freq_bins, time_steps) -> (time_steps, freq_bins).
@@ -145,7 +150,10 @@ def preprocess_text(text: str) -> str:
 
 
 def preprocess_dataset(
-    dataset_version: str, split_name: str, n_mels: int, dataset_size: str
+    dataset_version: str,
+    split_name: str,
+    n_mels: int,
+    dataset_size: str,
 ) -> None:
     """Preprocesses audio files & their transcriptions in the current data split.
 
@@ -270,7 +278,12 @@ def main():
     args = parser.parse_args()
 
     # Preprocesses audio files & their transcriptions in the current data split.
-    preprocess_dataset(args.dataset_version, "train", args.n_mels, args.dataset_size)
+    preprocess_dataset(
+        args.dataset_version,
+        "train",
+        args.n_mels,
+        args.dataset_size,
+    )
     preprocess_dataset(
         args.dataset_version, "validation", args.n_mels, args.dataset_size
     )

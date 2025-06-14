@@ -4,7 +4,7 @@ import time
 import mlflow
 import tensorflow as tf
 
-from src.utils import load_json_file, check_directory_path_existence
+from src.utils import load_json_file, check_directory_path_existence, save_json_file
 from src.deep_speech_2.dataset import Dataset
 from src.deep_speech_2.model import DeepSpeech2
 
@@ -113,9 +113,20 @@ class Train(object):
         # Builds plottable graph for the model.
         self.model = self.model.build_graph()
 
+        # Creates a learning rate schedule using Polynomial Decay.
+        lr_schedule = tf.keras.optimizers.schedules.PolynomialDecay(
+            initial_learning_rate=self.model_configuration["optimizer"][
+                "learning_rate"
+            ],
+            decay_steps=self.model_configuration["model"]["max_steps"],
+            end_learning_rate=1e-6,
+            power=self.model_configuration["optimizer"]["power"],
+        )
+
         # Loads the optimizer.
-        self.optimizer = tf.keras.optimizers.Adam(
-            learning_rate=self.model_configuration["model"]["learning_rate"]
+        self.optimizer = tf.keras.optimizers.SGD(
+            learning_rate=lr_schedule,
+            momentum=self.model_configuration["optimizer"]["momentum"],
         )
 
         # Creates checkpoint manager for the neural network model.
@@ -270,7 +281,7 @@ class Train(object):
                 target_batch, predicted_batch, target_lengths
             )
 
-        # Computes gradients using loss. Apply the computed gradients on model variables using optimizer.\
+        # Computes gradients using loss. Apply the computed gradients on model variables using optimizer.
         gradients = tape.gradient(batch_loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
 
@@ -499,6 +510,7 @@ class Train(object):
 
                 # If the model training has completed max train steps, then stops the model from training further.
                 if self.step == self.model_configuration["model"]["max_steps"]:
+                    print()
                     return
                 self.step += 1
 
@@ -590,8 +602,15 @@ class Train(object):
         print("Finished serializing model & configuration files.")
         print()
 
+        # Saves the updated model configuration as a JSON file.
+        save_json_file(
+            self.model_configuration,
+            f"v{self.model_version}",
+            os.path.join(self.home_directory_path, "configs", "deep_speech_2"),
+        )
+
         # Logs serialized model as artifact.
-        mlflow.log_artifacts(save_path, f"v{self.model_configuration['version']}/model")
+        mlflow.log_artifacts(save_path, f"v{self.model_version}/model")
 
         # Logs updated model configuration as artifact.
         mlflow.log_dict(

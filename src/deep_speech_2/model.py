@@ -78,7 +78,7 @@ class DeepSpeech2(tf.keras.Model):
 
         # Initializes the final dense layers.
         self.model_layers["dense_0"] = tf.keras.layers.Dense(
-            units=model_configuration["model"]["rnn_units"],
+            units=2 * model_configuration["model"]["rnn_units"],
             activation="relu",
             name="dense_0",
         )
