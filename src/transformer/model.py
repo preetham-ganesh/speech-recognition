@@ -49,3 +49,18 @@ class Transformer(tf.keras.Model):
                     name=f"encoder_embedding_conv2d_{l_id}",
                 )
             )
+
+    def compute_encoder_embedding(self, x: tf.Tensor) -> tf.Tensor:
+        """Computes encoder/speech feature embedding for the STFT audio input.
+
+        Computes encoder/speech feature embedding for the STFT audio input.
+
+        Args:
+            x: A tensor for the STFT audio input.
+
+        Returns:
+            A tensor for the encoder/speech feature embedding computed.
+        """
+        for l_id in range(3):
+            x = self.model_layers[f"encoder_embedding_conv2d_{l_id}"](x)
+        return x
