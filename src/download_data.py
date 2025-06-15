@@ -32,7 +32,8 @@ def download_dataset() -> None:
     dataset_links = {
         "test": "https://www.openslr.org/resources/12/test-clean.tar.gz",
         "validation": "https://www.openslr.org/resources/12/dev-clean.tar.gz",
-        "train": "https://www.openslr.org/resources/12/train-clean-360.tar.gz",
+        "train-360": "https://www.openslr.org/resources/12/train-clean-360.tar.gz",
+        "train-100": "https://www.openslr.org/resources/12/train-clean-100.tar.gz",
     }
 
     # Checks if the following directory path exists.
@@ -98,7 +99,7 @@ def extract_dataset() -> None:
     )
 
     # Iterates across file names for dataset splits.
-    for file_name in ["test", "validation", "train"]:
+    for file_name in ["test", "validation", "train-100", "train-360"]:
 
         # If file path does not exist, then extracts files from the tar file.
         if not os.path.exists(
