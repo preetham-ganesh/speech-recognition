@@ -70,13 +70,35 @@ class Transformer(tf.keras.Model):
         Returns:
             None.
         """
-        self.model_configuration["decoder_embedding"] = tf.keras.layers.Embedding(
+        self.model_layers["decoder_embedding"] = tf.keras.layers.Embedding(
             input_dim=self.model_configuration["model"]["target_vocab_size"],
             output_dim=self.model_configuration["model"]["d_units"],
+            name="decoder_embedding",
         )
-        self.model_configuration["decoder_positional_embedding"] = (
-            tf.keras.layers.Embedding(
-                input_dim=self.model_configuration["model"]["target_max_length"],
-                output_dim=self.model_configuration["model"]["d_units"],
-            )
+        self.model_layers["decoder_positional_embedding"] = tf.keras.layers.Embedding(
+            input_dim=self.model_configuration["model"]["target_max_length"],
+            output_dim=self.model_configuration["model"]["d_units"],
+            name="decoder_positional_embedding",
         )
+        self.model_layers["decoder_embedding_add_0"] = tf.keras.layers.Add(
+            name="decoder_embedding_add_0"
+        )
+
+    def compute_decoder_embedding(self, x: tf.Tensor) -> None:
+        """Computes the decoder input embedding by combining token and positional embeddings.
+
+        Args:
+            x: A tensor of target token indices with shape (batch_size, sequence_length).
+
+        Returns:
+            A tensor representing the combined token and positional embeddings.
+        """
+        x = self.model_layers["decoder_embedding"](x)
+        positions = tf.range(
+            start=0,
+            limit=self.model_configuration["model"]["target_max_length"],
+            delta=1,
+        )
+        positions = self.model_layers["decoder_positional_embedding"](positions)
+        x = self.model_layers["decoder_embedding_add_0"]([x, positions])
+        return x
