@@ -27,3 +27,25 @@ class Transformer(tf.keras.Model):
         # Initializes class variables.
         self.model_configuration = model_configuration
         self.model_layers = dict()
+
+    def initialize_encoder_embedding(self) -> None:
+        """Initializes Conv1D layers for the speech feature embedding.
+
+        Initializes Conv1D layers for the speech feature embedding.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        for l_id in range(3):
+            self.model_layers[f"encoder_embedding_conv2d_{l_id}"] = (
+                tf.keras.layers.Conv1D(
+                    filters=self.model_configuration["model"]["d_units"],
+                    strides=2,
+                    padding="same",
+                    activation="relu",
+                    name=f"encoder_embedding_conv2d_{l_id}",
+                )
+            )
