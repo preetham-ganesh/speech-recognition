@@ -20,7 +20,7 @@ from src.utils import check_directory_path_existence, load_text_file
 from typing import Dict, List
 
 
-def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
+def load_dataset_file_paths(split_name: str) -> List[Dict[str, str]]:
     """Loads file paths and transcription texts for a given dataset split (train, validation & test).
 
     Loads file paths and transcription texts for a given dataset split (train, validation & test).
@@ -29,7 +29,7 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
         split_name: A string for the name of the current dataset split.
 
     Returns:
-        A dictionary for the dataset info in current data split.
+        A list of dictionaries for the dataset info in current data split.
     """
     # Asserts type & value of the arguments.
     assert isinstance(split_name, str) and split_name in [
@@ -108,7 +108,7 @@ def load_preprocess_audio(file_path: str) -> np.ndarray:
         file_path: A string for the absolute path of the file location.
 
     Returns:
-        A NumPy array for the log-mel spectrogram loaded from the audio file.
+        A NumPy array for the Short-time Fourier Transform loaded from the audio file.
     """
     # Asserts type & value of the arguments.
     assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
@@ -167,7 +167,6 @@ def preprocess_text(text: str) -> str:
 def preprocess_dataset(
     dataset_version: str,
     split_name: str,
-    n_mels: int,
     dataset_size: str,
 ) -> None:
     """Preprocesses audio files & their transcriptions in the current data split.
@@ -177,7 +176,6 @@ def preprocess_dataset(
     Args:
         dataset_version: A string for the version of the processed dataset.
         split_name: A string for the name of the current dataset split.
-        n_mels: An integer for the no. of frequency bins to be computed.
         dataset_size: A string for the size of the processed dataset.
 
     Returns:
@@ -192,14 +190,21 @@ def preprocess_dataset(
         "validation",
         "test",
     ], "Variable split_name should be of type 'str' and have value as 'train', 'validation' or 'test'."
-    assert isinstance(n_mels, int), "Variable n_mels should be of type 'int'."
     assert isinstance(dataset_size, str) and dataset_size in [
         "mini",
         "full",
     ], "Variable dataset_size should be of type 'str' and have value as 'mini' or 'full'."
 
     # Loads file paths and transcription texts for a given dataset split (train, validation & test).
-    original_dataset_info = load_dataset_file_paths(split_name)
+    if split_name == "train":
+        original_dataset_info = load_dataset_file_paths("train-100")
+
+        # If dataset size is full, then loads the train-clean-360 file paths.
+        if dataset_size == "full":
+            original_dataset_info += load_dataset_file_paths("train-360")
+
+    else:
+        original_dataset_info = load_dataset_file_paths(split_name)
     print()
 
     # Checks if the following directory path exists.
@@ -209,17 +214,13 @@ def preprocess_dataset(
         )
     )
 
-    # If split is 'train' and dataset size is 'mini', then only 30% of processed dataset is processed.
-    n_examples = len(original_dataset_info)
-    if split_name == "train" and dataset_size == "mini":
-        n_examples = int(n_examples * 0.3)
-
     # Iterates across file paths & transcription texts in original dataset.
     processed_dataset_info = list()
-    for r_id, row in enumerate(original_dataset_info[:n_examples]):
+    n_examples = len(original_dataset_info)
+    for r_id, row in enumerate(original_dataset_info):
 
-        # Loads and preprocesses an audio file into a log-Mel spectrogram.
-        log_spectrogram = load_preprocess_audio(row["file_path"], n_mels)
+        # Loads and preprocesses an audio file into a Short-time Fourier Transform.
+        audio_stft = load_preprocess_audio(row["file_path"])
 
         # Preprocesses text string by stripping whitespace and converting to lowercase.
         processed_text = preprocess_text(row["text"])
@@ -227,7 +228,7 @@ def preprocess_dataset(
         # Saves the log mel spectrogram as NumPy array
         file_path = os.path.join(processed_data_directory_path, f"{r_id}.npy")
         with open(file_path, "wb") as f:
-            np.save(f, log_spectrogram)
+            np.save(f, audio_stft)
             f.close()
 
         # Appends the processed file info as dictionary to the list.
@@ -235,7 +236,7 @@ def preprocess_dataset(
             {
                 "file_path": file_path,
                 "text": processed_text,
-                "n_time_frames": log_spectrogram.shape[0],
+                "n_time_frames": audio_stft.shape[0],
             }
         )
 
@@ -283,26 +284,12 @@ def main():
         required=True,
         help="Enter the size of the processed dataset.",
     )
-    parser.add_argument(
-        "-nm",
-        "--n_mels",
-        type=int,
-        required=True,
-        help="Enter the no. of frequency bins that should be computed.",
-    )
     args = parser.parse_args()
 
     # Preprocesses audio files & their transcriptions in the current data split.
-    preprocess_dataset(
-        args.dataset_version,
-        "train",
-        args.n_mels,
-        args.dataset_size,
-    )
-    preprocess_dataset(
-        args.dataset_version, "validation", args.n_mels, args.dataset_size
-    )
-    preprocess_dataset(args.dataset_version, "test", args.n_mels, args.dataset_size)
+    preprocess_dataset(args.dataset_version, "train", args.dataset_size)
+    preprocess_dataset(args.dataset_version, "validation", args.dataset_size)
+    preprocess_dataset(args.dataset_version, "test", args.dataset_size)
 
 
 if __name__ == "__main__":
