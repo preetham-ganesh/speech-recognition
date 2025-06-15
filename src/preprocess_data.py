@@ -33,14 +33,16 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
     """
     # Asserts type & value of the arguments.
     assert isinstance(split_name, str) and split_name in [
-        "train",
+        "train-360",
+        "train-100",
         "validation",
         "test",
-    ], "Variable split_name should be of type 'str' and have value as 'train', 'validation' or 'test'."
+    ], "Variable split_name should be of type 'str' and have value as 'train-360', 'train-100', 'validation' or 'test'."
 
     # A dictionary to store the sub directory name based on the dataset split name.
     sub_directory_names = {
-        "train": "train-clean-360",
+        "train-360": "train-clean-360",
+        "train-100": "train-clean-100",
         "validation": "dev-clean",
         "test": "test-clean",
     }
@@ -97,37 +99,50 @@ def load_dataset_file_paths(split_name: str) -> Dict[str, List[str]]:
     return dataset_info
 
 
-def load_preprocess_audio(file_path: str, n_mels: int) -> np.ndarray:
-    """Loads and preprocesses an audio file into a log-Mel spectrogram.
+def load_preprocess_audio(file_path: str) -> np.ndarray:
+    """Loads and preprocesses an audio file into a Short-time Fourier Transform.
 
-    Loads and preprocesses an audio file into a log-Mel spectrogram.
+    Loads and preprocesses an audio file into a Short-time Fourier Transform.
 
     Args:
         file_path: A string for the absolute path of the file location.
-        n_mels: An integer for the no. of frequency bins to be computed.
 
     Returns:
         A NumPy array for the log-mel spectrogram loaded from the audio file.
     """
     # Asserts type & value of the arguments.
     assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
-    assert isinstance(n_mels, int), "Variable n_mels should be of type 'int'."
 
-    # Loads audio using the file path, with sample rate at 16kHz.
-    y, sr = librosa.load(file_path, sr=16000)
+    # Loads the audio for file path with sampling rate 16k and mono as default.
+    audio, _ = librosa.load(file_path, sr=16000, mono=True)
 
-    # Adds audio normalization.
-    y = librosa.util.normalize(y)
+    # Sets the STFT parameters.
+    frame_length, frame_step, fft_length = 200, 80, 256
 
-    # Computes log-mel spectrogram for the loaded audio file.
-    spectrogram = librosa.feature.melspectrogram(
-        y=y, sr=sr, n_mels=n_mels, hop_length=512, win_length=1280
+    # Computes STFT using scipy. 'hop_length' corresponds to frame_step, n_fft to fft_length.
+    stfts = librosa.stft(
+        audio,
+        n_fft=fft_length,
+        hop_length=frame_step,
+        win_length=frame_length,
+        window="hann",
     )
-    log_spectrogram = librosa.power_to_db(spectrogram, ref=np.max)
 
-    # Transposes: librosa spectrogram from (freq_bins, time_steps) -> (time_steps, freq_bins).
-    log_spectrogram = log_spectrogram.T
-    return log_spectrogram
+    # Takes magnitude and apply power of 0.5.
+    x = np.abs(stfts) ** 0.5
+
+    # Transposes to shape (time, frequency).
+    x = x.T
+
+    # Normalizes the STFT to subtract mean, divide by standard deviation along frequency axis. Avoids, division by 0.
+    x_mean = np.mean(x, axis=1, keepdims=True)
+    x_std_dev = np.std(x, axis=1, keepdims=True)
+    x_std_dev = np.where(x_std_dev == 0, 1, x_std_dev)
+    x = (x - x_mean) / x_std_dev
+
+    # Replaces any NaN values with 0.
+    x = np.where(np.isnan(x), 0.0, x)
+    return x
 
 
 def preprocess_text(text: str) -> str:
