@@ -31,8 +31,6 @@ class Transformer(tf.keras.Model):
     def initialize_encoder_embedding(self) -> None:
         """Initializes Conv1D layers for the speech feature embedding.
 
-        Initializes Conv1D layers for the speech feature embedding.
-
         Args:
             None.
 
@@ -53,8 +51,6 @@ class Transformer(tf.keras.Model):
     def compute_encoder_embedding(self, x: tf.Tensor) -> tf.Tensor:
         """Computes encoder/speech feature embedding for the STFT audio input.
 
-        Computes encoder/speech feature embedding for the STFT audio input.
-
         Args:
             x: A tensor for the STFT audio input.
 
@@ -64,3 +60,23 @@ class Transformer(tf.keras.Model):
         for l_id in range(3):
             x = self.model_layers[f"encoder_embedding_conv2d_{l_id}"](x)
         return x
+
+    def initialize_decoder_embedding(self) -> None:
+        """Initializes decoder embedding layers for mapping target tokens to dense vectors & adding position embedding.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        self.model_configuration["decoder_embedding"] = tf.keras.layers.Embedding(
+            input_dim=self.model_configuration["model"]["target_vocab_size"],
+            output_dim=self.model_configuration["model"]["d_units"],
+        )
+        self.model_configuration["decoder_positional_embedding"] = (
+            tf.keras.layers.Embedding(
+                input_dim=self.model_configuration["model"]["target_max_length"],
+                output_dim=self.model_configuration["model"]["d_units"],
+            )
+        )
