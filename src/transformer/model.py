@@ -84,7 +84,7 @@ class Transformer(tf.keras.Model):
             name="decoder_embedding_add_0"
         )
 
-    def compute_decoder_embedding(self, x: tf.Tensor) -> None:
+    def compute_decoder_embedding(self, x: tf.Tensor) -> tf.Tensor:
         """Computes the decoder input embedding by combining token and positional embeddings.
 
         Args:
@@ -102,3 +102,49 @@ class Transformer(tf.keras.Model):
         positions = self.model_layers["decoder_positional_embedding"](positions)
         x = self.model_layers["decoder_embedding_add_0"]([x, positions])
         return x
+
+    def initialize_encoder_layer(self, l_id: int) -> None:
+        """Initializes components in a single Transformer Encoder layer.
+
+        Args:
+            l_id: An integer for the id of the encoder layer in the Transformer model.
+
+        Returns:
+            None.
+        """
+        self.model_layers[f"encoder_{l_id}_attention_0"] = (
+            tf.keras.layers.MultiHeadAttention(
+                num_heads=self.model_configuration["model"]["n_heads"],
+                key_dim=self.model_configuration["model"]["d_units"],
+                name=f"encoder_{l_id}_attention_0",
+            )
+        )
+        self.model_layers[f"encoder_{l_id}_ffn"] = tf.keras.Sequential(
+            [
+                tf.keras.layers.Dense(
+                    units=self.model_configuration["model"]["ff_units"],
+                    activation="relu",
+                    name=f"encoder_{l_id}_ffn_dense_0",
+                ),
+                tf.keras.layers.Dense(
+                    units=self.model_configuration["model"]["d_units"],
+                    name=f"encoder_{l_id}_ffn_dense_1",
+                ),
+            ]
+        )
+        self.model_layers[f"encoder_{l_id}_layer_norm_0"] = (
+            tf.keras.layers.LayerNormalization(
+                epsilon=1e-6, name=f"encoder_{l_id}_layer_norm_0"
+            )
+        )
+        self.model_layers[f"encoder_{l_id}_layer_norm_1"] = (
+            tf.keras.layers.LayerNormalization(
+                epsilon=1e-6, name=f"encoder_{l_id}_layer_norm_1"
+            )
+        )
+        self.model_layers[f"encoder_{l_id}_dropout_0"] = tf.keras.layers.Dropout(
+            rate=self.model_configuration["model"]["rate"]
+        )
+        self.model_layers[f"encoder_{l_id}_dropout_dropout_1"] = (
+            tf.keras.layers.Dropout(rate=self.model_configuration["model"]["rate"])
+        )
