@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 import tensorflow as tf
+import numpy as np
 
 from src.utils import check_directory_path_existence
 
@@ -171,3 +172,69 @@ class Dataset(object):
 
         # Tokenizes characters into ids based on trained tokenizer.
         return [self.char_to_id[c] for c in text]
+
+    def load_input_target_batches(
+        self, file_paths: List[str], texts: List[str]
+    ) -> List[tf.Tensor]:
+        """Loads and preprocesses a batch of audio files and corresponding text labels.
+
+        Args:
+            file_paths: A list of strings for locations of audio files in current batch.
+            texts: A list of strings for transcriptions of audio files in current batch.
+
+        Returns:
+            A list of tensors for input & target batches, and target lengths of spectrograms & tokenized texts.
+        """
+        # Checks types & values of arguments.
+        assert isinstance(
+            file_paths, list
+        ), "Variable file_paths should be of type 'list'."
+        assert isinstance(texts, list), "Variable texts should be of type 'list'."
+
+        # Creates an empty numpy array to store padded versions of STFTs for all audio files in current batch.
+        input_batch = np.zeros(
+            shape=(
+                len(file_paths),
+                self.model_configuration["model"]["max_input_length"],
+                self.model_configuration["model"]["n_bins"],
+            )
+        )
+
+        # Creates empty list to store tokenized texts.
+        target_batch = list()
+
+        # Iterates across file paths in current batch.
+        for f_id in range(len(file_paths)):
+
+            # Loads previously saved STFT for current audio file.
+            stfts = np.load(str(file_paths[f_id], "UTF-8"))
+
+            # Pads the loaded STFT based on max_input_length
+            pad_amount = max(
+                0,
+                stfts.shape[0] - self.model_configuration["model"]["max_input_length"],
+            )
+            stfts = np.pad(stfts, ((0, pad_amount), (0, 0)), mode="constant")[
+                : self.model_configuration["model"]["max_input_length"], :
+            ]
+
+            # Tokenizes text to convert into ids using trained tokenizer.
+            sequence = self.tokenize_text(str(texts[f_id], "UTF-8"))
+
+            # Appends extracted STFT & tokenized & encoded version of text for current file into list.
+            input_batch[f_id, :, :] = stfts
+            target_batch.append(sequence)
+
+        # Adds extra dimension to the input batch, input & target lengths.
+        input_batch = tf.expand_dims(input_batch, axis=-1)
+
+        # Pads input & target batch tensors with 0 at the end.
+        target_batch = tf.keras.preprocessing.sequence.pad_sequences(
+            target_batch, padding="post", dtype="int32"
+        )
+
+        # Converts input & target batches into tensor of data type float32 & int32.
+        input_batch = tf.convert_to_tensor(input_batch, dtype=tf.float64)
+        input_batch = tf.cast(input_batch, dtype=tf.float32)
+        target_batch = tf.convert_to_tensor(target_batch, dtype=tf.int32)
+        return [input_batch, target_batch]
