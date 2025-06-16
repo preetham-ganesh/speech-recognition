@@ -318,39 +318,7 @@ class Transformer(tf.keras.Model):
         self.model_layers[f"decoder_{l_id}_add_1"] = tf.keras.layers.Add(
             name=f"decoder_{l_id}_add_1"
         )
-
-    def compute_decoder_attention_mask(
-        self, batch_size: int, target_length: int
-    ) -> tf.Tensor:
-        """Computes a causal attention mask for the Transformer decoder layer to prevent attention to future tokens.
-
-        Args:
-            batch_size: An integer for the no. of input & target sequences in current batch.
-            target_length: An integer for the length of target sequence.
-
-        Returns:
-            A boolean mask tensor where True indicates positions that should be attended to.
-        """
-
-        # Creates a custom layer to handle mask generation
-        class CausalMaskGenerator(tf.keras.layers.Layer):
-            def call(self, inputs):
-                batch_size = tf.shape(inputs)[0]
-                target_length = tf.shape(inputs)[1]
-
-                # Creates lower triangular matrix for causal masking
-                mask = tf.linalg.band_part(
-                    tf.ones((target_length, target_length)), -1, 0
-                )
-                # Expands dimensions for batch and convert to bool
-                mask = tf.cast(mask, tf.bool)
-                mask = tf.expand_dims(mask, 0)  # Add batch dimension
-                mask = tf.tile(mask, [batch_size, 1, 1])  # Tile for batch size
-                return mask
-
-        if not hasattr(self, "_mask_generator"):
-            self._mask_generator = CausalMaskGenerator()
-        return self._mask_generator
+        self.model_layers[f"decoder_{l_id}_attention_mask"] = CausalMaskGenerator()
 
     def compute_decoder_output(
         self, l_id: int, x: tf.Tensor, encoder_out: tf.Tensor, training: bool
