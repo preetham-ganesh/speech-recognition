@@ -28,6 +28,25 @@ class Transformer(tf.keras.Model):
         self.model_configuration = model_configuration
         self.model_layers = dict()
 
+        # Initializes Conv1D layers for the speech feature embedding.
+        self.initialize_encoder_embedding()
+
+        # Initializes the components of a single Transformer encoder layer.
+        for l_id in range(self.model_configuration["model"]["n_layers"]):
+            self.initialize_encoder_layer(l_id)
+
+        # Initializes decoder embedding layers for mapping target tokens to dense vectors & adding position embedding.
+        self.initialize_decoder_embedding()
+
+        # Initializes the components of a single Transformer decoder layer.
+        for l_id in range(self.model_configuration["model"]["n_layers"]):
+            self.initialize_decoder_layer(l_id)
+
+        # Initializes the Final Dense layer.
+        self.model_layers["final"] = tf.keras.layers.Dense(
+            units=self.model_configuration["model"]["target_vocab_size"]
+        )
+
     def initialize_encoder_embedding(self) -> None:
         """Initializes Conv1D layers for the speech feature embedding.
 
