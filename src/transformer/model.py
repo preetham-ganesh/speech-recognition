@@ -286,3 +286,53 @@ class Transformer(tf.keras.Model):
             [tf.expand_dims(batch_size, -1), tf.constant([1, 1], dtype=tf.int32)], 0
         )
         return tf.tile(expanded_mask, batch_tile_shape)
+
+    def compute_decoder_output(
+        self, l_id: int, x: tf.Tensor, encoder_out: tf.Tensor, training: bool
+    ) -> tf.Tensor:
+        """Computes the output of a single decoder layer in the Transformer model.
+
+        Args:
+            l_id: An integer for the id of the decoder layer in the model.
+            x: A tensor for the decoder input from previous decoder layer or decoder embedding.
+            encoder_out: A tensor for the output from the last layer in the encoder model.
+            training: A boolean value for the flag of training/testing state.
+
+        Returns:
+            A tensor for the output computed by the components in the decoder layer in the model.
+        """
+        # Computes a causal attention mask for the Transformer decoder layer to prevent attention to future tokens.
+        causal_mask = None
+        if x.shape[0] and x.shape[1]:
+            causal_mask = self.compute_decoder_attention_mask(
+                x.shape[0], x.shape[1], x.shape[2], tf.bool
+            )
+
+        # Computes the multi-head attention layer output for input, and adds output to input as residual connection.
+        attention_out_0 = self.model_layers[f"decoder_{l_id}_attention_0"](
+            x, x, attention_mask=causal_mask
+        )
+        attention_out_0 = self.model_layers[f"decoder_{l_id}_dropout_0"](
+            attention_out_0, training=training
+        )
+        x = self.model_layers[f"decoder_{l_id}_add_0"]([x, attention_out_0])
+        x = self.model_layers[f"decoder_{l_id}_layer_norm_0"](x)
+
+        # Computes the multi-head attention layer output for encoder out, and adds output to input as residual connection.
+        attention_out_1 = self.model_layers[f"decoder_{l_id}_attention_1"](
+            x, encoder_out
+        )
+        attention_out_1 = self.model_layers[f"decoder_{l_id}_dropout_1"](
+            attention_out_1, training=training
+        )
+        x = self.model_layers[f"decoder_{l_id}_add_1"]([x, attention_out_1])
+        x = self.model_layers[f"decoder_{l_id}_layer_norm_1"](x)
+
+        # Computes the Feed-forward network layer output, and adds output to attention output as residual connection.
+        ff_output = self.model_layers[f"decoder_{l_id}_ffn"](x)
+        ff_output = self.model_layers[f"decoder_{l_id}_dropout_dropout_1"](
+            ff_output, training=training
+        )
+        x = self.model_layers[f"decoder_{l_id}_add_1"]([x, ff_output])
+        x = self.model_layers[f"decoder_{l_id}_layer_norm_1"](x)
+        return x
