@@ -143,10 +143,12 @@ class Transformer(tf.keras.Model):
             )
         )
         self.model_layers[f"encoder_{l_id}_dropout_0"] = tf.keras.layers.Dropout(
-            rate=self.model_configuration["model"]["rate"]
+            rate=self.model_configuration["model"]["rate"],
+            name=f"encoder_{l_id}_dropout_0",
         )
-        self.model_layers[f"encoder_{l_id}_dropout_dropout_1"] = (
-            tf.keras.layers.Dropout(rate=self.model_configuration["model"]["rate"])
+        self.model_layers[f"encoder_{l_id}_dropout_1"] = tf.keras.layers.Dropout(
+            rate=self.model_configuration["model"]["rate"],
+            name=f"encoder_{l_id}_dropout_1",
         )
         self.model_layers[f"encoder_{l_id}_add_0"] = tf.keras.layers.Add(
             name=f"encoder_{l_id}_add_0"
@@ -184,3 +186,73 @@ class Transformer(tf.keras.Model):
         x = self.model_layers[f"encoder_{l_id}_add_1"]([x, ff_output])
         x = self.model_layers[f"encoder_{l_id}_layer_norm_1"](x)
         return x
+
+    def initialize_decoder_layer(self, l_id: int) -> None:
+        """Initializes the components of a single Transformer decoder layer.
+
+        Args:
+            l_id: An integer for the id of the encoder layer in the Transformer model.
+
+        Returns:
+            None.
+        """
+        self.model_layers[f"decoder_{l_id}_attention_0"] = (
+            tf.keras.layers.MultiHeadAttention(
+                num_heads=self.model_configuration["model"]["n_heads"],
+                key_dim=self.model_configuration["model"]["d_units"],
+                name=f"decoder_{l_id}_attention_0",
+            )
+        )
+        self.model_layers[f"decoder_{l_id}_attention_1"] = (
+            tf.keras.layers.MultiHeadAttention(
+                num_heads=self.model_configuration["model"]["n_heads"],
+                key_dim=self.model_configuration["model"]["d_units"],
+                name=f"decoder_{l_id}_attention_1",
+            )
+        )
+        self.model_layers[f"decoder_{l_id}_ffn"] = tf.keras.Sequential(
+            [
+                tf.keras.layers.Dense(
+                    units=self.model_configuration["model"]["ff_units"],
+                    activation="relu",
+                    name=f"decoder_{l_id}_ffn_dense_0",
+                ),
+                tf.keras.layers.Dense(
+                    units=self.model_configuration["model"]["d_units"],
+                    name=f"decoder_{l_id}_ffn_dense_1",
+                ),
+            ]
+        )
+        self.model_layers[f"decoder_{l_id}_layer_norm_0"] = (
+            tf.keras.layers.LayerNormalization(
+                epsilon=1e-6, name=f"decoder_{l_id}_layer_norm_0"
+            )
+        )
+        self.model_layers[f"decoder_{l_id}_layer_norm_1"] = (
+            tf.keras.layers.LayerNormalization(
+                epsilon=1e-6, name=f"decoder_{l_id}_layer_norm_1"
+            )
+        )
+        self.model_layers[f"decoder_{l_id}_layer_norm_2"] = (
+            tf.keras.layers.LayerNormalization(
+                epsilon=1e-6, name=f"decoder_{l_id}_layer_norm_2"
+            )
+        )
+        self.model_layers[f"decoder_{l_id}_dropout_0"] = tf.keras.layers.Dropout(
+            rate=self.model_configuration["model"]["rate"],
+            name=f"decoder_{l_id}_dropout_0",
+        )
+        self.model_layers[f"decoder_{l_id}_dropout_1"] = tf.keras.layers.Dropout(
+            rate=self.model_configuration["model"]["rate"],
+            name=f"decoder_{l_id}_dropout_1",
+        )
+        self.model_layers[f"decoder_{l_id}_dropout_2"] = tf.keras.layers.Dropout(
+            rate=self.model_configuration["model"]["rate"],
+            name=f"decoder_{l_id}_dropout_2",
+        )
+        self.model_layers[f"decoder_{l_id}_add_0"] = tf.keras.layers.Add(
+            name=f"decoder_{l_id}_add_0"
+        )
+        self.model_layers[f"decoder_{l_id}_add_1"] = tf.keras.layers.Add(
+            name=f"decoder_{l_id}_add_1"
+        )
