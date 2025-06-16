@@ -9,8 +9,6 @@ from typing import Dict, Any
 def check_directory_path_existence(directory_path: str) -> str:
     """Creates the directory path.
 
-    Creates the absolute path for the directory path given in argument if it does not already exist.
-
     Args:
         directory_path: A string for the directory path that needs to be created if it does not already exist.
 
@@ -32,8 +30,6 @@ def check_directory_path_existence(directory_path: str) -> str:
 
 def load_text_file(file_name: str, directory_path: str) -> str:
     """Loads text file as a string.
-
-    Loads text file as a string.
 
     Args:
         file_name: A string for the name of the file that needs to be loaded.
@@ -66,8 +62,6 @@ def load_text_file(file_name: str, directory_path: str) -> str:
 
 def load_json_file(file_name: str, directory_path: str) -> Dict[Any, Any]:
     """Loads a JSON file as a dictionary.
-
-    Loads a JSON file as a dictionary into memory based on the file_name.
 
     Args:
         file_name: A string for the name of the of the file to be loaded.
@@ -103,8 +97,6 @@ def save_json_file(
 ) -> None:
     """Saves dictionary as a JSON file.
 
-    Converts a dictionary into a JSON file and saves it for future use.
-
     Args:
         dictionary: A dictionary which needs to be saved.
         file_name: A string for the name with which the file has to be saved.
@@ -132,8 +124,6 @@ def save_json_file(
 
 def set_physical_devices_memory_limit() -> None:
     """Sets memory limit of GPU if found in the system.
-
-    Sets memory limit of GPU if found in the system.
 
     Args:
         None.

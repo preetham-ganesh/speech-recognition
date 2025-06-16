@@ -413,7 +413,7 @@ class Transformer(tf.keras.Model):
             A `tf.keras.Model` representing the Transformer architecture.
         """
         input_sequence = tf.keras.layers.Input(
-            shape=(None, self.model_configuration["model"]["input_feature_dim"]),
+            shape=(None, self.model_configuration["model"]["n_bins"]),
             dtype=tf.float32,
             name="input_sequence",
         )

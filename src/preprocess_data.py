@@ -23,8 +23,6 @@ from typing import Dict, List
 def load_dataset_file_paths(split_name: str) -> List[Dict[str, str]]:
     """Loads file paths and transcription texts for a given dataset split (train, validation & test).
 
-    Loads file paths and transcription texts for a given dataset split (train, validation & test).
-
     Args:
         split_name: A string for the name of the current dataset split.
 
@@ -102,8 +100,6 @@ def load_dataset_file_paths(split_name: str) -> List[Dict[str, str]]:
 def load_preprocess_audio(file_path: str) -> np.ndarray:
     """Loads and preprocesses an audio file into a Short-time Fourier Transform.
 
-    Loads and preprocesses an audio file into a Short-time Fourier Transform.
-
     Args:
         file_path: A string for the absolute path of the file location.
 
@@ -170,8 +166,6 @@ def preprocess_dataset(
     dataset_size: str,
 ) -> None:
     """Preprocesses audio files & their transcriptions in the current data split.
-
-    Preprocesses audio files & their transcriptions in the current data split.
 
     Args:
         dataset_version: A string for the version of the processed dataset.

@@ -20,8 +20,6 @@ from src.utils import check_directory_path_existence
 def download_dataset() -> None:
     """Downloads the LibriSpeech dataset using the OpenSLR links.
 
-    Downloads the LibriSpeech dataset using the OpenSLR links.
-
     Args:
         None.
 
@@ -81,8 +79,6 @@ def download_dataset() -> None:
 
 def extract_dataset() -> None:
     """Extracts files from the LibriSpeech dataset previously downloaded.
-
-    Extracts files from the LibriSpeech dataset previously downloaded.
 
     Args:
         None.
