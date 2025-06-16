@@ -161,7 +161,7 @@ class Transformer(tf.keras.Model):
             )
 
         # Computes positional embeddings.
-        positions = self.model_layers["decoder_positional_embedding"](positions)
+        positions = self.model_layers["decoder_positional_embedding"](x)
         x = self.model_layers["decoder_embedding_add_0"]([x, positions])
         return x
 
@@ -192,7 +192,8 @@ class Transformer(tf.keras.Model):
                     units=self.model_configuration["model"]["d_units"],
                     name=f"encoder_{l_id}_ffn_dense_1",
                 ),
-            ]
+            ],
+            name=f"encoder_{l_id}_ffn",
         )
         self.model_layers[f"encoder_{l_id}_layer_norm_0"] = (
             tf.keras.layers.LayerNormalization(
@@ -283,7 +284,8 @@ class Transformer(tf.keras.Model):
                     units=self.model_configuration["model"]["d_units"],
                     name=f"decoder_{l_id}_ffn_dense_1",
                 ),
-            ]
+            ],
+            name=f"decoder_{l_id}_ffn",
         )
         self.model_layers[f"decoder_{l_id}_layer_norm_0"] = (
             tf.keras.layers.LayerNormalization(
@@ -318,6 +320,9 @@ class Transformer(tf.keras.Model):
         self.model_layers[f"decoder_{l_id}_add_1"] = tf.keras.layers.Add(
             name=f"decoder_{l_id}_add_1"
         )
+        self.model_layers[f"decoder_{l_id}_add_2"] = tf.keras.layers.Add(
+            name=f"decoder_{l_id}_add_2"
+        )
         self.model_layers[f"decoder_{l_id}_attention_mask"] = CausalMaskGenerator()
 
     def compute_decoder_output(
@@ -335,13 +340,9 @@ class Transformer(tf.keras.Model):
             A tensor for the output computed by the components in the decoder layer in the model.
         """
         # Computes a causal attention mask for the Transformer decoder layer to prevent attention to future tokens.
-        causal_mask = None
-        if x.shape[0] and x.shape[1]:
-            causal_mask = self.compute_decoder_attention_mask(
-                x.shape[0], x.shape[1], x.shape[2], tf.bool
-            )
+        causal_mask = self.model_layers[f"decoder_{l_id}_attention_mask"](x)
 
-        # Computes the multi-head attention layer output for input, and adds output to input as residual connection.
+        # Self-attention with causal masking
         attention_out_0 = self.model_layers[f"decoder_{l_id}_attention_0"](
             x, x, attention_mask=causal_mask
         )
@@ -351,7 +352,7 @@ class Transformer(tf.keras.Model):
         x = self.model_layers[f"decoder_{l_id}_add_0"]([x, attention_out_0])
         x = self.model_layers[f"decoder_{l_id}_layer_norm_0"](x)
 
-        # Computes the multi-head attention layer output for encoder out, and adds output to input as residual connection.
+        # Cross-attention with encoder output.
         attention_out_1 = self.model_layers[f"decoder_{l_id}_attention_1"](
             x, encoder_out
         )
@@ -361,7 +362,7 @@ class Transformer(tf.keras.Model):
         x = self.model_layers[f"decoder_{l_id}_add_1"]([x, attention_out_1])
         x = self.model_layers[f"decoder_{l_id}_layer_norm_1"](x)
 
-        # Computes the Feed-forward network layer output, and adds output to attention output as residual connection.
+        # Feed-forward network.
         ff_output = self.model_layers[f"decoder_{l_id}_ffn"](x)
         ff_output = self.model_layers[f"decoder_{l_id}_dropout_1"](
             ff_output, training=training
@@ -370,7 +371,7 @@ class Transformer(tf.keras.Model):
         x = self.model_layers[f"decoder_{l_id}_layer_norm_1"](x)
         return x
 
-    def call(self, inputs: List[tf.Tensor], training: bool) -> List[tf.Tensor]:
+    def call(self, inputs: List[tf.Tensor], training: bool = False) -> List[tf.Tensor]:
         """Executes the forward pass of the Transformer model.
 
         Args:
@@ -382,25 +383,25 @@ class Transformer(tf.keras.Model):
         """
         input_sequence, target_sequence = inputs
 
-        # Computes the decoder input embedding by combining token and positional embeddings.
-        input_sequence = self.compute_encoder_embedding(input_sequence)
+        # Computes encoder/speech feature embedding for the STFT audio input.
+        encoder_out = self.compute_encoder_embedding(input_sequence)
 
-        # Computes the output of a single encoder layer in the Transformer model.
+        # Passes through encoder layers in the Transformer model.
         for l_id in range(self.model_configuration["model"]["n_layers"]):
-            input_sequence = self.compute_encoder_output(l_id, input_sequence, training)
+            encoder_out = self.compute_encoder_output(l_id, encoder_out, training)
 
         # Computes the decoder input embedding by combining token and positional embeddings.
-        target_sequence = self.compute_decoder_embedding(target_sequence)
+        decoder_out = self.compute_decoder_embedding(target_sequence)
 
-        # Computes the output of a single decoder layer in the Transformer model.
+        # Passes through decoder layers in the Transformer model.
         for l_id in range(self.model_configuration["model"]["n_layers"]):
-            input_sequence = self.compute_decoder_output(
-                l_id, target_sequence, input_sequence, training
+            decoder_out = self.compute_decoder_output(
+                l_id, decoder_out, encoder_out, training
             )
 
         # Applies final dense layer to map decoder output to target vocabulary size.
-        target_sequence = self.model_layers["final"](target_sequence)
-        return [target_sequence]
+        decoder_out = self.model_layers["final"](decoder_out)
+        return [decoder_out]
 
     def build_graph(self) -> tf.keras.Model:
         """"""
