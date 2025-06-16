@@ -1,6 +1,7 @@
 import os
 
 import pandas as pd
+import tensorflow as tf
 
 from src.utils import check_directory_path_existence
 
@@ -74,4 +75,61 @@ class Dataset(object):
         print(
             f"No. of examples in the test data split: {len(self.dataset_info['test'])}"
         )
+        print()
+
+    def shuffle_slice_dataset(self) -> None:
+        """Zips file paths & transcriptions into single tensor dataset & slices them based on batch size.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Zips file paths & transcriptions into single tensor, and shuffles it.
+        self.train_dataset = tf.data.Dataset.from_tensor_slices(
+            (
+                list(self.dataset_info["train"]["file_path"]),
+                list(self.dataset_info["train"]["text"]),
+            )
+        )
+        self.validation_dataset = tf.data.Dataset.from_tensor_slices(
+            (
+                list(self.dataset_info["validation"]["file_path"]),
+                list(self.dataset_info["validation"]["text"]),
+            )
+        )
+        self.test_dataset = tf.data.Dataset.from_tensor_slices(
+            (
+                list(self.dataset_info["test"]["file_path"]),
+                list(self.dataset_info["test"]["text"]),
+            )
+        )
+
+        # Slices the combined dataset based on batch size, and drops remainder values.
+        self.batch_size = self.model_configuration["model"]["batch_size"]
+        self.train_dataset = self.train_dataset.batch(
+            self.batch_size, drop_remainder=True
+        )
+        self.validation_dataset = self.validation_dataset.batch(
+            self.batch_size, drop_remainder=True
+        )
+        self.test_dataset = self.test_dataset.batch(
+            self.batch_size, drop_remainder=True
+        )
+
+        # Computes number of steps per epoch for all dataset.
+        self.n_train_steps_per_epoch = (
+            len(self.dataset_info["train"]["file_path"]) // self.batch_size
+        )
+        self.n_validation_steps_per_epoch = (
+            len(self.dataset_info["validation"]["file_path"]) // self.batch_size
+        )
+        self.n_test_steps_per_epoch = (
+            len(self.dataset_info["test"]["file_path"]) // self.batch_size
+        )
+
+        print(f"No. of train steps per epoch: {self.n_train_steps_per_epoch}")
+        print(f"No. of validation steps per epoch: {self.n_validation_steps_per_epoch}")
+        print(f"No. of test steps per epoch: {self.n_test_steps_per_epoch}")
         print()
