@@ -404,8 +404,14 @@ class Transformer(tf.keras.Model):
         return [decoder_out]
 
     def build_graph(self) -> tf.keras.Model:
-        """"""
-        # Defines symbolic input tensors
+        """Builds a plottable computation graph for the Transformer model.
+
+        Args:
+            None.
+
+        Returns:
+            A `tf.keras.Model` representing the Transformer architecture.
+        """
         input_sequence = tf.keras.layers.Input(
             shape=(None, self.model_configuration["model"]["input_feature_dim"]),
             dtype=tf.float32,
