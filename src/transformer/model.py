@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class Transformer(tf.keras.Model):
@@ -355,3 +355,35 @@ class Transformer(tf.keras.Model):
         x = self.model_layers[f"decoder_{l_id}_add_1"]([x, ff_output])
         x = self.model_layers[f"decoder_{l_id}_layer_norm_1"](x)
         return x
+
+    def call(self, inputs: List[tf.Tensor], training: bool) -> List[tf.Tensor]:
+        """Executes the forward pass of the Transformer model.
+
+        Args:
+            inputs: A list for input & target sequences representing encoder & decoder inputs.
+            training: A boolean value for the flag of training/testing state.
+
+        Returns:
+            A list of tensors for the output predicted by the model current inputs.
+        """
+        input_sequence, target_sequence = inputs
+
+        # Computes the decoder input embedding by combining token and positional embeddings.
+        input_sequence = self.compute_encoder_embedding(input_sequence)
+
+        # Computes the output of a single encoder layer in the Transformer model.
+        for l_id in range(self.model_configuration["model"]["n_layers"]):
+            input_sequence = self.compute_encoder_output(l_id, input_sequence, training)
+
+        # Computes the decoder input embedding by combining token and positional embeddings.
+        target_sequence = self.compute_decoder_embedding(target_sequence)
+
+        # Computes the output of a single decoder layer in the Transformer model.
+        for l_id in range(self.model_configuration["model"]["n_layers"]):
+            input_sequence = self.compute_decoder_output(
+                l_id, target_sequence, input_sequence, training
+            )
+
+        # Applies final dense layer to map decoder output to target vocabulary size.
+        target_sequence = self.model_layers["final"](target_sequence)
+        return [target_sequence]
