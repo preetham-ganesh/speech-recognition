@@ -4,12 +4,10 @@ from typing import Dict, Any, List
 
 
 class Transformer(tf.keras.Model):
-    """"""
+    """Speech-to-Text Transformer model with encoder-decoder architecture."""
 
     def __init__(self, model_configuration: Dict[str, Any]):
         """Initializes the Transformer model, by adding various layers.
-
-        Initializes the Transformer model, by adding various layers.
 
         Args:
             model_configuration: A dictionary for the configuration of the model.
@@ -57,13 +55,14 @@ class Transformer(tf.keras.Model):
             None.
         """
         for l_id in range(3):
-            self.model_layers[f"encoder_embedding_conv2d_{l_id}"] = (
+            self.model_layers[f"encoder_embedding_conv1d_{l_id}"] = (
                 tf.keras.layers.Conv1D(
                     filters=self.model_configuration["model"]["d_units"],
+                    kernel_size=11,
                     strides=2,
                     padding="same",
                     activation="relu",
-                    name=f"encoder_embedding_conv2d_{l_id}",
+                    name=f"encoder_embedding_conv1d_{l_id}",
                 )
             )
 
@@ -77,7 +76,7 @@ class Transformer(tf.keras.Model):
             A tensor for the encoder/speech feature embedding computed.
         """
         for l_id in range(3):
-            x = self.model_layers[f"encoder_embedding_conv2d_{l_id}"](x)
+            x = self.model_layers[f"encoder_embedding_conv1d_{l_id}"](x)
         return x
 
     def initialize_decoder_embedding(self) -> None:
@@ -112,12 +111,31 @@ class Transformer(tf.keras.Model):
         Returns:
             A tensor representing the combined token and positional embeddings.
         """
+        # Computes token embeddings.
         x = self.model_layers["decoder_embedding"](x)
-        positions = tf.range(
-            start=0,
-            limit=self.model_configuration["model"]["target_max_length"],
-            delta=1,
-        )
+
+        # Create a custom layer to handle position generation
+
+        class PositionGenerator(tf.keras.layers.Layer):
+            def __init__(self, max_length, **kwargs):
+                super().__init__(**kwargs)
+                self.max_length = max_length
+
+            def call(self, inputs):
+                batch_size = tf.shape(inputs)[0]
+                seq_length = tf.shape(inputs)[1]
+                positions = tf.range(start=0, limit=seq_length, delta=1)
+                positions = tf.expand_dims(positions, 0)
+                positions = tf.tile(positions, [batch_size, 1])
+                return positions
+
+        # Generate positions using the custom layer.
+        if not hasattr(self, "_position_generator"):
+            self._position_generator = PositionGenerator(
+                max_length=self.model_configuration["model"]["target_max_length"]
+            )
+
+        # Computes positional embeddings.
         positions = self.model_layers["decoder_positional_embedding"](positions)
         x = self.model_layers["decoder_embedding_add_0"]([x, positions])
         return x
@@ -199,7 +217,7 @@ class Transformer(tf.keras.Model):
 
         # Computes the Feed-forward network layer output, and adds output to attention output as residual connection.
         ff_output = self.model_layers[f"encoder_{l_id}_ffn"](x)
-        ff_output = self.model_layers[f"encoder_{l_id}_dropout_dropout_1"](
+        ff_output = self.model_layers[f"encoder_{l_id}_dropout_1"](
             ff_output, training=training
         )
         x = self.model_layers[f"encoder_{l_id}_add_1"]([x, ff_output])
@@ -349,7 +367,7 @@ class Transformer(tf.keras.Model):
 
         # Computes the Feed-forward network layer output, and adds output to attention output as residual connection.
         ff_output = self.model_layers[f"decoder_{l_id}_ffn"](x)
-        ff_output = self.model_layers[f"decoder_{l_id}_dropout_dropout_1"](
+        ff_output = self.model_layers[f"decoder_{l_id}_dropout_1"](
             ff_output, training=training
         )
         x = self.model_layers[f"decoder_{l_id}_add_1"]([x, ff_output])
@@ -387,3 +405,20 @@ class Transformer(tf.keras.Model):
         # Applies final dense layer to map decoder output to target vocabulary size.
         target_sequence = self.model_layers["final"](target_sequence)
         return [target_sequence]
+
+    def build_graph(self) -> tf.keras.Model:
+        """"""
+        # Defines symbolic input tensors
+        input_sequence = tf.keras.layers.Input(
+            shape=(None, self.model_configuration["model"]["input_feature_dim"]),
+            dtype=tf.float32,
+            name="input_sequence",
+        )
+        target_sequence = tf.keras.layers.Input(
+            shape=(None,), dtype=tf.int32, name="target_sequence"
+        )
+        return tf.keras.Model(
+            inputs=[input_sequence, target_sequence],
+            outputs=self.call(inputs=[input_sequence, target_sequence], training=False),
+            name="Transformer",
+        )
