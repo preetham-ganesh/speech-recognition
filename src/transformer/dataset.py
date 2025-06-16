@@ -156,3 +156,18 @@ class Dataset(object):
         self.id_to_char[c_id + 2] = " "
         self.char_to_id["'"] = c_id + 3
         self.id_to_char[c_id + 3] = "'"
+
+    def tokenize_text(self, text: str) -> List[int]:
+        """Tokenizes text to convert into ids using trained tokenizer.
+
+        Args:
+            text: A string for the target text that should be tokenized.
+
+        Returns:
+            A list of integers for the tokenized & encoded version of the text.
+        """
+        # Checks types & values of arguments.
+        assert isinstance(text, str), "Variable text should be of type 'str'."
+
+        # Tokenizes characters into ids based on trained tokenizer.
+        return [self.char_to_id[c] for c in text]
