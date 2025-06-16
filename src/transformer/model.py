@@ -256,3 +256,33 @@ class Transformer(tf.keras.Model):
         self.model_layers[f"decoder_{l_id}_add_1"] = tf.keras.layers.Add(
             name=f"decoder_{l_id}_add_1"
         )
+
+    def compute_decoder_attention_mask(
+        self, batch_size: int, target_max_length: int, input_max_length: int, dtype: Any
+    ) -> tf.Tensor:
+        """Computes a causal attention mask for the Transformer decoder layer to prevent attention to future tokens.
+
+        Args:
+            batch_size: An integer for the no. of input & target sequences in current batch.
+            target_max_length: An integer for the maximum length of target sequence.
+            input_max_length: An integer for the maximum length of input sequence.
+            dtype: Desired data type of the mask (e.g., tf.float32 or tf.float16).
+
+        Returns:
+            A boolean mask tensor of shape (batch_size, target_max_length, input_max_length), where 1 is allowed
+                attention.
+
+        """
+        query_positions = tf.range(target_max_length)[:, None]
+        key_positions = tf.range(input_max_length)
+        causal_mask = (
+            query_positions >= key_positions - input_max_length + target_max_length
+        )
+        expanded_mask = tf.cast(causal_mask, dtype=dtype)
+        expanded_mask = tf.reshape(
+            expanded_mask, shape=[1, target_max_length, input_max_length]
+        )
+        batch_tile_shape = tf.concat(
+            [tf.expand_dims(batch_size, -1), tf.constant([1, 1], dtype=tf.int32)], 0
+        )
+        return tf.tile(expanded_mask, batch_tile_shape)
