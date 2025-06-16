@@ -3,6 +3,31 @@ import tensorflow as tf
 from typing import Dict, Any, List
 
 
+class CausalMaskGenerator(tf.keras.layers.Layer):
+    """A custom Keras layer that generates a causal (look-ahead) attention mask."""
+
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        """Generates a boolean causal mask based on the input sequence length.
+
+        Args:
+            inputs: A tensor for the input of shape (batch_size, target_seq_len, ...)
+
+        Returns:
+            A boolean mask tensor where True indicates positions that should be attended to.
+        """
+        batch_size = tf.shape(inputs)[0]
+        target_length = tf.shape(inputs)[1]
+
+        # Creates lower triangular matrix for causal masking
+        mask = tf.linalg.band_part(tf.ones((target_length, target_length)), -1, 0)
+
+        # Expands dimensions for batch and convert to bool
+        mask = tf.cast(mask, tf.bool)
+        mask = tf.expand_dims(mask, 0)  # Add batch dimension
+        mask = tf.tile(mask, [batch_size, 1, 1])  # Tile for batch size
+        return mask
+
+
 class Transformer(tf.keras.Model):
     """Speech-to-Text Transformer model with encoder-decoder architecture."""
 
@@ -228,7 +253,7 @@ class Transformer(tf.keras.Model):
         """Initializes the components of a single Transformer decoder layer.
 
         Args:
-            l_id: An integer for the id of the encoder layer in the Transformer model.
+            l_id: An integer for the id of the decoder layer in the Transformer model.
 
         Returns:
             None.
@@ -295,34 +320,37 @@ class Transformer(tf.keras.Model):
         )
 
     def compute_decoder_attention_mask(
-        self, batch_size: int, target_max_length: int, input_max_length: int, dtype: Any
+        self, batch_size: int, target_length: int
     ) -> tf.Tensor:
         """Computes a causal attention mask for the Transformer decoder layer to prevent attention to future tokens.
 
         Args:
             batch_size: An integer for the no. of input & target sequences in current batch.
-            target_max_length: An integer for the maximum length of target sequence.
-            input_max_length: An integer for the maximum length of input sequence.
-            dtype: Desired data type of the mask (e.g., tf.float32 or tf.float16).
+            target_length: An integer for the length of target sequence.
 
         Returns:
-            A boolean mask tensor of shape (batch_size, target_max_length, input_max_length), where 1 is allowed
-                attention.
-
+            A boolean mask tensor where True indicates positions that should be attended to.
         """
-        query_positions = tf.range(target_max_length)[:, None]
-        key_positions = tf.range(input_max_length)
-        causal_mask = (
-            query_positions >= key_positions - input_max_length + target_max_length
-        )
-        expanded_mask = tf.cast(causal_mask, dtype=dtype)
-        expanded_mask = tf.reshape(
-            expanded_mask, shape=[1, target_max_length, input_max_length]
-        )
-        batch_tile_shape = tf.concat(
-            [tf.expand_dims(batch_size, -1), tf.constant([1, 1], dtype=tf.int32)], 0
-        )
-        return tf.tile(expanded_mask, batch_tile_shape)
+
+        # Creates a custom layer to handle mask generation
+        class CausalMaskGenerator(tf.keras.layers.Layer):
+            def call(self, inputs):
+                batch_size = tf.shape(inputs)[0]
+                target_length = tf.shape(inputs)[1]
+
+                # Creates lower triangular matrix for causal masking
+                mask = tf.linalg.band_part(
+                    tf.ones((target_length, target_length)), -1, 0
+                )
+                # Expands dimensions for batch and convert to bool
+                mask = tf.cast(mask, tf.bool)
+                mask = tf.expand_dims(mask, 0)  # Add batch dimension
+                mask = tf.tile(mask, [batch_size, 1, 1])  # Tile for batch size
+                return mask
+
+        if not hasattr(self, "_mask_generator"):
+            self._mask_generator = CausalMaskGenerator()
+        return self._mask_generator
 
     def compute_decoder_output(
         self, l_id: int, x: tf.Tensor, encoder_out: tf.Tensor, training: bool
@@ -370,7 +398,7 @@ class Transformer(tf.keras.Model):
         ff_output = self.model_layers[f"decoder_{l_id}_dropout_1"](
             ff_output, training=training
         )
-        x = self.model_layers[f"decoder_{l_id}_add_1"]([x, ff_output])
+        x = self.model_layers[f"decoder_{l_id}_add_2"]([x, ff_output])
         x = self.model_layers[f"decoder_{l_id}_layer_norm_1"](x)
         return x
 
