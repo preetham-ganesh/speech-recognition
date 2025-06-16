@@ -148,3 +148,39 @@ class Transformer(tf.keras.Model):
         self.model_layers[f"encoder_{l_id}_dropout_dropout_1"] = (
             tf.keras.layers.Dropout(rate=self.model_configuration["model"]["rate"])
         )
+        self.model_layers[f"encoder_{l_id}_add_0"] = tf.keras.layers.Add(
+            name=f"encoder_{l_id}_add_0"
+        )
+        self.model_layers[f"encoder_{l_id}_add_1"] = tf.keras.layers.Add(
+            name=f"encoder_{l_id}_add_1"
+        )
+
+    def compute_encoder_output(
+        self, l_id: int, x: tf.Tensor, training: bool
+    ) -> tf.Tensor:
+        """Computes the output of a single encoder layer in the Transformer model.
+
+        Args:
+            l_id: An integer for the id of the encoder layer in the model.
+            x: A tensor for the input from the previous encoder layer or encoder embedding.
+            training: A boolean value for the flag of training/testing state.
+
+        Returns:
+            A tensor for the output computed by the current encoder layer in the model.
+        """
+        # Computes the multi-head attention layer output for input, and adds output to input as residual connection.
+        attention_out = self.model_layers[f"encoder_{l_id}_attention_0"](x, x)
+        attention_out = self.model_layers[f"encoder_{l_id}_dropout_0"](
+            attention_out, training=training
+        )
+        x = self.model_layers[f"encoder_{l_id}_add_0"]([x, attention_out])
+        x = self.model_layers[f"encoder_{l_id}_layer_norm_0"](x)
+
+        # Computes the Feed-forward network layer output, and adds output to attention output as residual connection.
+        ff_output = self.model_layers[f"encoder_{l_id}_ffn"](x)
+        ff_output = self.model_layers[f"encoder_{l_id}_dropout_dropout_1"](
+            ff_output, training=training
+        )
+        x = self.model_layers[f"encoder_{l_id}_add_1"]([x, ff_output])
+        x = self.model_layers[f"encoder_{l_id}_layer_norm_1"](x)
+        return x
