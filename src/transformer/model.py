@@ -161,7 +161,8 @@ class Transformer(tf.keras.Model):
             )
 
         # Computes positional embeddings.
-        positions = self.model_layers["decoder_positional_embedding"](x)
+        positions = self._position_generator(x)
+        positions = self.model_layers["decoder_positional_embedding"](positions)
         x = self.model_layers["decoder_embedding_add_0"]([x, positions])
         return x
 
