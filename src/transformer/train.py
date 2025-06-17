@@ -270,3 +270,45 @@ class Train(object):
 
         # Computes the average loss by summing valid loss values and normalizing by the number of non-padded tokens.
         return tf.reduce_sum(loss) / tf.reduce_sum(mask)
+
+    def compute_accuracy(
+        self, target_batch: tf.Tensor, predicted_batch: tf.Tensor
+    ) -> tf.Tensor:
+        """Computes accuracy for the current batch using actual & predicted values.
+
+        Computes accuracy for the current batch using actual & predicted values.
+
+        Args:
+            target_batch: A tensor which contains the actual values for the current batch.
+            predicted_batch: A tensor which contains the predicted values for the current batch.
+
+        Returns:
+            A tensor for the accuracy of current batch.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(
+            target_batch, tf.Tensor
+        ), "Variable target_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            predicted_batch, tf.Tensor
+        ), "Variable predicted_batch should be of type 'tf.Tensor'."
+
+        # Computes the predicted token indices.
+        predicted_batch = tf.argmax(predicted_batch, axis=-1)
+
+        # Ensures dtype compatibility between target batch & predicted batch.
+        target_batch = tf.cast(target_batch, dtype=predicted_batch.dtype)
+
+        # Computes element-wise match (excluding padding).
+        correct_predictions = tf.equal(target_batch, predicted_batch)
+
+        # Creates mask to ignore padding (assumes 0 is the padding token).
+        mask = tf.not_equal(target_batch, 0)
+
+        # Applies mask to correct predictions.
+        correct_predictions = tf.cast(correct_predictions & mask, dtype=tf.float32)
+        mask = tf.cast(mask, dtype=tf.float32)
+
+        # Computes masked accuracy.
+        accuracy = tf.reduce_sum(correct_predictions) / tf.reduce_sum(mask)
+        return accuracy
