@@ -32,6 +32,27 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         self.d_units = tf.cast(d_units, tf.float32)
         self.warmup_steps = warmup_steps
 
+    def __call__(self, step: tf.Tensor) -> tf.Tensor:
+        """Computes the learning rate for a given training step.
+
+        Args:
+            step: A tensor for current training step.
+
+        Returns:
+            A tensor for the computed learning rate at given training step
+        """
+        # Converts step to float32 to prevent dtype mismatch
+        step = tf.cast(step, tf.float32)
+
+        # Computes the inverse square root of the current step & the scaled learning rate for the warmup phase
+        arg_1 = tf.math.rsqrt(step)
+        arg_2 = step * (self.warmup_steps**-1.5)
+
+        # Scales by the inverse square root of the model dimension and takes the minimum.
+        return tf.math.rsqrt(tf.cast(self.d_units, tf.float32)) * tf.math.minimum(
+            arg_1, arg_2
+        )
+
 
 class Train(object):
     """Trains the ASR Transformer model based on the configuration."""
