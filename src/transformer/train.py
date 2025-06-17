@@ -103,8 +103,8 @@ class Train(object):
         mlflow.set_tag("model_type", self.model_configuration["model"]["type"])
 
         # Logs parameters in MLFlow.
-        mlflow.log_param("n_layers", self.n_layers)
-        mlflow.log_param("d_units", self.d_units)
+        mlflow.log_param("n_layers", self.model_configuration["model"]["n_layers"])
+        mlflow.log_param("d_units", self.model_configuration["model"]["d_units"])
 
     def load_dataset(self) -> None:
         """Loads audio file paths & transcriptions in the dataset.
@@ -124,6 +124,11 @@ class Train(object):
         # Zips file paths & transcriptions into single tensor dataset & slices them based on batch size.
         self.dataset.shuffle_slice_dataset()
 
+        # Updates warmup steps in model configuration with n_train_steps_per_epoch.
+        self.model_configuration["optimizer"][
+            "warmup_steps"
+        ] = self.dataset.n_train_steps_per_epoch
+
         # Trains a simple character-level tokenizer for CTC-based speech recognition.
         self.dataset.train_tokenizer()
 
@@ -133,7 +138,7 @@ class Train(object):
         self.model_configuration["tokenizer"]["id_to_char"] = self.dataset.id_to_char
 
         # Updates model configuration with vocab size.
-        self.model_configuration["model"]["vocab_size"] = (
+        self.model_configuration["model"]["target_vocab_size"] = (
             len(self.dataset.char_to_id) + 1
         )
 
@@ -314,12 +319,7 @@ class Train(object):
         accuracy = tf.reduce_sum(correct_predictions) / tf.reduce_sum(mask)
         return accuracy
 
-    @tf.function(
-        input_signature=[
-            tf.TensorSpec(shape=(None, None), dtype=tf.float32),
-            tf.TensorSpec(shape=(None, None), dtype=tf.int32),
-        ]
-    )
+    @tf.function
     def train_step(self, input_batch: tf.Tensor, target_batch: tf.Tensor) -> None:
         """Trains model using current input & target batches.
 
@@ -652,7 +652,7 @@ class Train(object):
                 self.model_configuration["model"]["max_input_length"],
                 self.model_configuration["model"]["n_bins"],
             ],
-            dtype=tf.int32,
+            dtype=tf.float32,
         )
         target_sequence = tf.ones([2, 50], dtype=tf.int32)
 
