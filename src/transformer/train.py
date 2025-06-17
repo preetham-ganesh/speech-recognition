@@ -444,3 +444,47 @@ class Train(object):
             step=epoch,
         )
         print()
+
+    def validate_model_per_epoch(self, epoch: int) -> None:
+        """Validates the model using the current validation dataset.
+
+        Args:
+            epoch: An integer for the number of current epoch.
+
+        Returns:
+            None
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(epoch, int), "Variable epoch should be of type 'int'."
+
+        # Iterates across batches in the validation dataset.
+        for batch, (file_paths, texts) in enumerate(
+            self.dataset.validation_dataset.take(
+                self.dataset.n_validation_steps_per_epoch
+            )
+        ):
+            batch_start_time = time.time()
+
+            # Loads and preprocesses a batch of audio files and corresponding text labels.
+            input_batch, target_batch = self.dataset.load_input_target_batches(
+                list(file_paths.numpy()), list(texts.numpy())
+            )
+
+            # Validates the model using the current input and target batch.
+            self.validation_step(input_batch, target_batch)
+            batch_end_time = time.time()
+            print(
+                f"Epoch={epoch + 1}, Batch={batch}, Validation loss={self.validation_loss.result().numpy():.3f}, "
+                + f"Validation accuracy={self.validation_accuracy.result().numpy():.3f}, "
+                + f"Time taken={(batch_end_time - batch_start_time):.3f} sec."
+            )
+
+        # Logs train metrics for current epoch.
+        mlflow.log_metrics(
+            {
+                "validation_loss": self.validation_loss.result().numpy(),
+                "validation_accuracy": self.validation_accuracy.result().numpy(),
+            },
+            step=epoch,
+        )
+        print("")
