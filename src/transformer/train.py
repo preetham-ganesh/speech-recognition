@@ -235,3 +235,38 @@ class Train(object):
         self.validation_loss = tf.keras.metrics.Mean(name="validation_loss")
         self.train_accuracy = tf.keras.metrics.Mean(name="train_accuracy")
         self.validation_accuracy = tf.keras.metrics.Mean(name="validation_accuracy")
+
+    def compute_loss(
+        self, target_batch: tf.Tensor, predicted_batch: tf.Tensor
+    ) -> tf.Tensor:
+        """Computes loss for the current batch using actual & predicted values.
+
+        Computes loss for the current batch using actual & predicted values.
+
+        Args:
+            target_batch: A tensor for target batch of generated mask images.
+            predicted_batch: A tensor for batch of outputs predicted by the model for input batch.
+
+        Returns:
+            A tensor for the loss computed on comparing target & predicted batch.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(
+            target_batch, tf.Tensor
+        ), "Variable target_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            predicted_batch, tf.Tensor
+        ), "Variable predicted_batch should be of type 'tf.Tensor'."
+
+        # Computes the loss between the target and predicted values using the loss function
+        loss = self.loss_object(target_batch, predicted_batch)
+
+        # Computes a mask to ignore padding tokens (assumed to be represented by 0)
+        mask = tf.math.logical_not(tf.math.equal(target_batch, 0))
+        mask = tf.cast(mask, dtype=loss.dtype)
+
+        # Applies the mask to the loss to ignore contributions from padding tokens.
+        loss *= mask
+
+        # Computes the average loss by summing valid loss values and normalizing by the number of non-padded tokens.
+        return tf.reduce_sum(loss) / tf.reduce_sum(mask)
