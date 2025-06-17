@@ -12,7 +12,10 @@ warnings.filterwarnings("ignore")
 logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
 
+import tensorflow as tf
+
 from src.utils import load_json_file
+from src.transformer.dataset import Dataset
 
 
 class SpeechRecognition(object):
@@ -20,8 +23,6 @@ class SpeechRecognition(object):
 
     def __init__(self, model_version: str) -> None:
         """Creates object attributes for the SpeechRecognition class.
-
-        Creates object attributes for the SpeechRecognition class.
 
         Args:
             model_version: A string for the version of the model should be used for prediction.
@@ -38,8 +39,6 @@ class SpeechRecognition(object):
     def load_model_configuration(self) -> None:
         """Loads the model configuration file for model version.
 
-        Loads the model configuration file for model version.
-
         Args:
             None.
 
@@ -53,3 +52,31 @@ class SpeechRecognition(object):
         self.model_configuration = load_json_file(
             "model_configuration", model_configuration_directory_path
         )
+
+    def load_model(self) -> None:
+        """Loads model & other utilities for prediction.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Loads the tensorflow serialized model using model name & version.
+        self.home_directory_path = os.getcwd()
+        exported_model = tf.saved_model.load(
+            os.path.join(
+                self.home_directory_path,
+                "models",
+                "models",
+                "transformer",
+                f"v{self.model_version}",
+                "serialized",
+            )
+        )
+
+        # Get the callable signature (default is "serving_default")
+        self.model = exported_model.signatures["serving_default"]
+
+        # Initializes object for the Dataset class.
+        self.dataset = Dataset(self.model_configuration)
