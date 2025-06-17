@@ -153,10 +153,10 @@ class Dataset(object):
             self.id_to_char[c_id + 1] = chr(ord("a") + c_id)
 
         # Adds other characters to dictionary.
-        other_characters = [" ", "'", "<s>", "</s"]
+        other_characters = [" ", "'", "<s>", "</s>"]
         for c_id, char in enumerate(other_characters):
-            self.char_to_id[char] = self.char_to_id["z"] + 1
-            self.id_to_char[c_id + self.char_to_id["z"] + 1] = char
+            self.char_to_id[char] = self.char_to_id["z"] + 1 + c_id
+            self.id_to_char[c_id + self.char_to_id["z"] + 1 + c_id] = char
 
     def tokenize_text(self, text: str) -> List[int]:
         """Tokenizes text to convert into ids using trained tokenizer.
@@ -171,7 +171,11 @@ class Dataset(object):
         assert isinstance(text, str), "Variable text should be of type 'str'."
 
         # Tokenizes characters into ids based on trained tokenizer.
-        return ["<s>"] + [self.char_to_id[c] for c in text] + ["</s>"]
+        return (
+            [self.char_to_id["<s>"]]
+            + [self.char_to_id[c] for c in text]
+            + [self.char_to_id["</s>"]]
+        )
 
     def load_input_target_batches(
         self, file_paths: List[str], texts: List[str]
@@ -209,20 +213,17 @@ class Dataset(object):
             # Loads previously saved STFT for current audio file.
             stfts = np.load(str(file_paths[f_id], "UTF-8"))
 
-            # Pads the loaded STFT based on max_input_length
-            pad_amount = max(
-                0,
-                stfts.shape[0] - self.model_configuration["model"]["max_input_length"],
-            )
-            stfts = np.pad(stfts, ((0, pad_amount), (0, 0)), mode="constant")[
-                : self.model_configuration["model"]["max_input_length"], :
-            ]
+            # Truncates STFTs if it has more than 'max_input_length' time frames.
+            if stfts.shape[0] > self.model_configuration["model"]["max_input_length"]:
+                stfts = stfts[
+                    : self.model_configuration["model"]["max_input_length"], :
+                ]
 
             # Tokenizes text to convert into ids using trained tokenizer.
             sequence = self.tokenize_text(str(texts[f_id], "UTF-8"))
 
             # Appends extracted STFT & tokenized & encoded version of text for current file into list.
-            input_batch[f_id, :, :] = stfts
+            input_batch[f_id, : stfts.shape[0], :] = stfts
             target_batch.append(sequence)
 
         # Adds extra dimension to the input batch, input & target lengths.
