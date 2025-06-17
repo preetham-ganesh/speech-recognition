@@ -3,6 +3,7 @@ import os
 import mlflow
 
 from src.utils import load_json_file
+from src.transformer.dataset import Dataset
 
 
 class Train(object):
@@ -26,8 +27,6 @@ class Train(object):
 
     def load_model_configuration(self) -> None:
         """Loads the model configuration file for model version.
-
-        Loads the model configuration file for model version.
 
         Args:
             None.
@@ -56,3 +55,34 @@ class Train(object):
         # Logs parameters in MLFlow.
         mlflow.log_param("n_layers", self.n_layers)
         mlflow.log_param("d_units", self.d_units)
+
+    def load_dataset(self) -> None:
+        """Loads audio file paths & transcriptions in the dataset.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Creates object attributes for the Dataset class.
+        self.dataset = Dataset(self.model_configuration)
+
+        # Loads file paths and transcription texts for the LibriSpeech dataset.
+        self.dataset.load_dataset_info()
+
+        # Zips file paths & transcriptions into single tensor dataset & slices them based on batch size.
+        self.dataset.shuffle_slice_dataset()
+
+        # Trains a simple character-level tokenizer for CTC-based speech recognition.
+        self.dataset.train_tokenizer()
+
+        # Adds trained tokenizer to model configuration.
+        self.model_configuration["tokenizer"] = dict()
+        self.model_configuration["tokenizer"]["char_to_id"] = self.dataset.char_to_id
+        self.model_configuration["tokenizer"]["id_to_char"] = self.dataset.id_to_char
+
+        # Updates model configuration with vocab size.
+        self.model_configuration["model"]["vocab_size"] = (
+            len(self.dataset.char_to_id) + 1
+        )
