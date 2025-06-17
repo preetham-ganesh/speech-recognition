@@ -322,8 +322,6 @@ class Train(object):
     def train_step(self, input_batch: tf.Tensor, target_batch: tf.Tensor) -> None:
         """Trains model using current input & target batches.
 
-        Trains model using current input & target batches.
-
         Args:
             input_batch: A tensor for the input text from the current batch for training the model.
             target_batch: A tensor for the target text from the current batch for training and validating the model.
@@ -358,3 +356,34 @@ class Train(object):
         # Computes batch metrics and appends it to main metrics.
         self.train_loss(loss)
         self.train_accuracy(accuracy)
+
+    def validation_step(self, input_batch: tf.Tensor, target_batch: tf.Tensor) -> None:
+        """Validates model using current input & target batches.
+
+        Args:
+            input_batch: A tensor for the input text from the current batch for validating the model.
+            target_batch: A tensor for the target text from the current batch for validating the model.
+
+        Returns:
+            None.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(
+            input_batch, tf.Tensor
+        ), "Variable input_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            target_batch, tf.Tensor
+        ), "Variable target_batch should be of type 'tf.Tensor'."
+
+        # Separates target into input (excludes last token) & real (excludes first token).
+        target_batch_inp = target_batch[:, :-1]
+        target_batch_real = target_batch[:, 1:]
+
+        # Computes the model output for current batch, and metrics for current model output.
+        predictions = self.model([input_batch, target_batch_inp], training=False)
+        loss = self.compute_loss(target_batch_real, predictions)
+        accuracy = self.compute_accuracy(target_batch_real, predictions)
+
+        # Computes batch metrics and appends it to main metrics.
+        self.validation_loss(loss)
+        self.validation_accuracy(accuracy)
