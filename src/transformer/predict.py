@@ -12,6 +12,9 @@ warnings.filterwarnings("ignore")
 logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
 
+from src.utils import load_json_file
+
+
 class SpeechRecognition(object):
     """"""
 
@@ -31,3 +34,22 @@ class SpeechRecognition(object):
 
         # Initalizes class variables.
         self.model_version = model_version
+
+    def load_model_configuration(self) -> None:
+        """Loads the model configuration file for model version.
+
+        Loads the model configuration file for model version.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        self.home_directory_path = os.getcwd()
+        model_configuration_directory_path = os.path.join(
+            self.home_directory_path, "models", "transformer", f"v{self.model_version}"
+        )
+        self.model_configuration = load_json_file(
+            "model_configuration", model_configuration_directory_path
+        )
