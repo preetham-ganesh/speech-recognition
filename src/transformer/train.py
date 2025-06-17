@@ -4,7 +4,7 @@ import time
 import mlflow
 import tensorflow as tf
 
-from src.utils import load_json_file, check_directory_path_existence
+from src.utils import load_json_file, check_directory_path_existence, save_json_file
 from src.transformer.dataset import Dataset
 from src.transformer.model import Transformer
 
@@ -634,4 +634,72 @@ class Train(object):
                 "test_loss": self.validation_loss.result().numpy(),
                 "test_accuracy": self.validation_accuracy.result().numpy(),
             }
+        )
+
+    def serialize_model(self) -> None:
+        """Serializes model as TensorFlow module & saves it as MLFlow artifact.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Generates dummy input data for serialization testing.
+        input_sequence = tf.ones(
+            [
+                2,
+                self.model_configuration["model"]["max_input_length"],
+                self.model_configuration["model"]["n_bins"],
+            ],
+            dtype=tf.int32,
+        )
+        target_sequence = tf.ones([2, 50], dtype=tf.int32)
+
+        # Predicts output for the sample input using the model.
+        output_0 = self.model([input_sequence, target_sequence], training=False)
+
+        # Saves the model in TF Saved Model format.
+        save_path = check_directory_path_existence(
+            os.path.join(
+                "models",
+                "transformer",
+                f"v{self.model_version}",
+                "serialized",
+            )
+        )
+        self.model.export(save_path)
+
+        # Loads the serialized model to check if the loaded model is callable.
+        exported_model = tf.saved_model.load(save_path)
+
+        # Get the callable signature (default is "serving_default")
+        serving_model = exported_model.signatures["serving_default"]
+
+        # Predicts output for the sample input using the model
+        output_1 = serving_model(
+            input_sequence=input_sequence, target_sequence=target_sequence
+        )
+
+        # Checks if the shape between output from saved & loaded models matches.
+        assert (
+            output_0.shape == output_1["output_0"].shape
+        ), "Shape does not match between the output from saved & loaded models."
+        print("Finished serializing model & configuration files.")
+        print()
+
+        # Logs serialized model as artifact.
+        mlflow.log_artifacts(save_path, f"v{self.model_version}/model")
+
+        # Saves the updated model configuration in the model directory.
+        save_json_file(
+            self.model_configuration,
+            "model_configuration",
+            os.path.join("models", "transformer", f"v{self.model_version}"),
+        )
+
+        # Logs updated model configuration as artifact.
+        mlflow.log_dict(
+            self.model_configuration,
+            f"v{self.model_version}/model_configuration.json",
         )
