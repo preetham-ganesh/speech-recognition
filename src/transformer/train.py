@@ -1,9 +1,36 @@
 import os
 
 import mlflow
+import tensorflow as tf
 
 from src.utils import load_json_file
 from src.transformer.dataset import Dataset
+
+
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    """Custom learning rate schedule following an inverse square-root decay strategy with linear warmup."""
+
+    def __init__(self, d_units: int, warmup_steps: int = 4000) -> None:
+        """Creates object attributes for the CustomSchedule class.
+
+        Args:
+            d_units: An integer for the dimensionality of model's embeddings.
+            warmup_steps: An integer for the no. of steps of linear warmup.
+
+        Returns:
+            None.
+        """
+        super(CustomSchedule, self).__init__()
+
+        # Asserts type & values of the arguments.
+        assert isinstance(d_units, int), "Variable d_units should be of type 'int'."
+        assert isinstance(
+            warmup_steps, int
+        ), "Variable warmup_steps should be of type 'int'."
+
+        # Initalizes class variables.
+        self.d_units = tf.cast(d_units, tf.float32)
+        self.warmup_steps = warmup_steps
 
 
 class Train(object):
