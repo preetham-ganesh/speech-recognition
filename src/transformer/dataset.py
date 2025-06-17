@@ -152,11 +152,11 @@ class Dataset(object):
             self.char_to_id[chr(ord("a") + c_id)] = c_id + 1
             self.id_to_char[c_id + 1] = chr(ord("a") + c_id)
 
-        # Adds space & ' to the char <-> id tokenizers.
-        self.char_to_id[" "] = c_id + 2
-        self.id_to_char[c_id + 2] = " "
-        self.char_to_id["'"] = c_id + 3
-        self.id_to_char[c_id + 3] = "'"
+        # Adds other characters to dictionary.
+        other_characters = [" ", "'", "<s>", "</s"]
+        for c_id, char in enumerate(other_characters):
+            self.char_to_id[char] = self.char_to_id["z"] + 1
+            self.id_to_char[c_id + self.char_to_id["z"] + 1] = char
 
     def tokenize_text(self, text: str) -> List[int]:
         """Tokenizes text to convert into ids using trained tokenizer.
@@ -171,7 +171,7 @@ class Dataset(object):
         assert isinstance(text, str), "Variable text should be of type 'str'."
 
         # Tokenizes characters into ids based on trained tokenizer.
-        return [self.char_to_id[c] for c in text]
+        return ["<s>"] + [self.char_to_id[c] for c in text] + ["</s>"]
 
     def load_input_target_batches(
         self, file_paths: List[str], texts: List[str]
