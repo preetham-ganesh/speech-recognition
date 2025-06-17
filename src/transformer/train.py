@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from src.utils import load_json_file
 from src.transformer.dataset import Dataset
+from src.transformer.model import Transformer
 
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
@@ -134,3 +135,52 @@ class Train(object):
         self.model_configuration["model"]["vocab_size"] = (
             len(self.dataset.char_to_id) + 1
         )
+
+    def load_model(self) -> None:
+        """Loads model & other utilies based on model configuration.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Loads model for current model configuration.
+        self.model = Transformer(self.model_configuration)
+
+        # Builds plottable graph for the model.
+        self.model = self.model.build_graph()
+
+        # Loads the optimizer.
+        learning_rate = CustomSchedule(
+            self.model_configuration["model"]["d_units"],
+            self.model_configuration["optimizer"]["warmup_steps"],
+        )
+        self.optimizer = tf.keras.optimizers.Adam(
+            learning_rate,
+            beta_1=self.model_configuration["optimizer"]["beta_1"],
+            beta_2=self.model_configuration["optimizer"]["beta_2"],
+            epsilon=self.model_configuration["optimizer"]["epsilon"],
+        )
+
+        # Initializes the loss object using Sparse Categorical Crossentropy.
+        self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
+            from_logits=True, reduction="none"
+        )
+
+        # Creates checkpoint manager for the neural network model.
+        self.checkpoint_directory_path = os.path.join(
+            self.home_directory_path,
+            "models",
+            "transformer",
+            f"v{self.model_version}",
+            "checkpoints",
+        )
+        self.checkpoint = tf.train.Checkpoint(
+            optimizer=self.optimizer, model=self.model
+        )
+        self.manager = tf.train.CheckpointManager(
+            self.checkpoint, directory=self.checkpoint_directory_path, max_to_keep=1
+        )
+        print("Finished loading model for current configuration.")
+        print()
