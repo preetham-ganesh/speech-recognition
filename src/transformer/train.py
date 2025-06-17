@@ -544,3 +544,47 @@ class Train(object):
         else:
             return False
         return True
+
+    def fit(self) -> None:
+        """Trains & validates the loaded model using train & validation dataset.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Initializes trackers which computes the mean of all metrics.
+        self.initialize_metric_trackers()
+
+        # Iterates across epochs for training the neural network model.
+        for epoch in range(self.model_configuration["model"]["epochs"]):
+            epoch_start_time = time.time()
+
+            # Resets states for trackers before the start of each epoch.
+            self.reset_metrics_trackers()
+
+            # Trains the model using batces in the train dataset.
+            self.train_model_per_epoch(epoch)
+
+            # Validates the model using batches in the validation dataset.
+            self.validate_model_per_epoch(epoch)
+
+            epoch_end_time = time.time()
+            print(
+                f"Epoch={epoch + 1}, Train loss={self.train_loss.result().numpy():.3f}, "
+                + f"Validation loss={self.validation_loss.result().numpy():.3f}, "
+                + f"Train accuracy={self.train_accuracy.result().numpy():.3f}, "
+                + f"Validation accuracy={self.validation_accuracy.result().numpy():.3f}, "
+                + f"Time taken={(epoch_end_time - epoch_start_time):.3f} sec."
+            )
+
+            # Stops the model from learning further if the performance has not improved from previous epoch.
+            model_training_status = self.early_stopping()
+            if not model_training_status:
+                print(
+                    "Model did not improve after 4th time. Model stopped from training further."
+                )
+                print()
+                break
+            print()
