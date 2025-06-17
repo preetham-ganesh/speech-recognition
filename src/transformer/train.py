@@ -492,8 +492,6 @@ class Train(object):
     def save_model(self) -> None:
         """Saves the model after checking performance metrics in current step.
 
-        Saves the model after checking performance metrics in current step.
-
         Args:
             None.
 
@@ -502,3 +500,47 @@ class Train(object):
         """
         self.manager.save()
         print(f"Checkpoint saved at {self.checkpoint_directory_path}.")
+
+    def early_stopping(self) -> bool:
+        """Stops the model from learning further if the performance has not improved from previous step break.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # If epoch = 1, then best validation loss is replaced with current validation loss, & the checkpoint is saved.
+        if self.best_validation_loss is None:
+            self.patience_count = 0
+            self.best_validation_loss = round(
+                float(self.validation_loss.result().numpy()), 3
+            )
+            self.save_model()
+
+        # If best validation loss is higher than current validation loss, the best validation loss is replaced with
+        # current validation loss, & the checkpoint is saved.
+        elif self.best_validation_loss > round(
+            float(self.validation_loss.result().numpy()), 3
+        ):
+            self.patience_count = 0
+            print(
+                f"Best validation loss changed from {self.best_validation_loss} to "
+                + f"{self.validation_loss.result().numpy():.3f}"
+            )
+            self.best_validation_loss = round(
+                float(self.validation_loss.result().numpy()), 3
+            )
+            self.save_model()
+
+        # If best validation loss is not higher than the current validation loss, then the number of times the model
+        # has not improved is incremented by 1.
+        elif self.patience_count < self.model_configuration["model"]["patience_count"]:
+            self.patience_count += 1
+            print("Best validation loss did not improve.")
+            print("Checkpoint not saved.")
+
+        # If the number of times the model did not improve is greater than 4, then model is stopped from training.
+        else:
+            return False
+        return True
