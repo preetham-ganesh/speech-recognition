@@ -488,3 +488,17 @@ class Train(object):
             step=epoch,
         )
         print("")
+
+    def save_model(self) -> None:
+        """Saves the model after checking performance metrics in current step.
+
+        Saves the model after checking performance metrics in current step.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        self.manager.save()
+        print(f"Checkpoint saved at {self.checkpoint_directory_path}.")
