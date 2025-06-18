@@ -13,6 +13,7 @@ logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
 
 import tensorflow as tf
+import numpy as np
 
 from src.utils import load_json_file
 from src.transformer.dataset import Dataset
@@ -68,7 +69,6 @@ class SpeechRecognition(object):
             os.path.join(
                 self.home_directory_path,
                 "models",
-                "models",
                 "transformer",
                 f"v{self.model_version}",
                 "serialized",
@@ -80,3 +80,35 @@ class SpeechRecognition(object):
 
         # Initializes object for the Dataset class.
         self.dataset = Dataset(self.model_configuration)
+
+    def load_preprocess_input(self, file_path: str) -> tf.Tensor:
+        """Loads & preprocesses STFT of audio file based on model requirements.
+
+        Args:
+            file_path: A string for the location of the STFT for the audio file.
+
+        Returns:
+            A tensor for the STFT file loaded for the audio file.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
+
+        # Loads previously saved STFT for current audio file.
+        stft = np.load(file_path)
+
+        # Pads the STFT file to maximum input length.
+        pad_length = abs(
+            self.model_configuration["model"]["max_input_length"] - stft.shape[0]
+        )
+        stft = np.pad(
+            stft,
+            pad_width=((0, pad_length), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )[: self.model_configuration["model"]["max_input_length"], :]
+
+        # Casts STFT to float32 & adds an extra dimensions to it.
+        stft = tf.convert_to_tensor(stft, dtype=tf.float32)
+        stft = tf.expand_dims(stft, axis=0)
+        stft = tf.expand_dims(stft, axis=-1)
+        return stft
