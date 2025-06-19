@@ -97,6 +97,23 @@ def load_dataset_file_paths(split_name: str) -> List[Dict[str, str]]:
     return dataset_info
 
 
+def load_audio(file_path: str) -> np.ndarray:
+    """Loads an audio file at a fixed sampling rate and returns the waveform as a NumPy array.
+
+    Args:
+        file_path: A string for the absolute path of the file location.
+
+    Returns:
+        A NumPy array for the audio file loaded with sampling rate as 16k.
+    """
+    # Asserts type & value of the arguments.
+    assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
+
+    # Loads the audio for file path with sampling rate 16k and mono as default.
+    audio, sr = librosa.load(file_path, sr=16000, mono=True)
+    return audio
+
+
 def load_preprocess_audio(file_path: str) -> np.ndarray:
     """Loads and preprocesses an audio file into a Short-time Fourier Transform.
 
