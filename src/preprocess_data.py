@@ -221,16 +221,15 @@ def preprocess_text(text: str) -> str:
 
 
 def preprocess_dataset(
-    dataset_version: str,
-    split_name: str,
-    dataset_size: str,
+    dataset_version: str, split_name: str, dataset_size: str, representation: str
 ) -> None:
-    """Preprocesses audio files & their transcriptions in the current data split.
+    """Preprocesses audio files and their transcription texts for a given LibriSpeech data split.
 
     Args:
         dataset_version: A string for the version of the processed dataset.
         split_name: A string for the name of the current dataset split.
         dataset_size: A string for the size of the processed dataset.
+        representation: A string for the type of audio representation to compute.
 
     Returns:
         None.
@@ -248,6 +247,10 @@ def preprocess_dataset(
         "mini",
         "full",
     ], "Variable dataset_size should be of type 'str' and have value as 'mini' or 'full'."
+    assert isinstance(representation, str) and representation in [
+        "stft",
+        "spectrogram",
+    ], "Variable representation should be of type 'str' and have value as 'stft' or 'spectrogram'."
 
     # Loads file paths and transcription texts for a given dataset split (train, validation & test).
     if split_name == "train":
@@ -273,16 +276,22 @@ def preprocess_dataset(
     n_examples = len(original_dataset_info)
     for r_id, row in enumerate(original_dataset_info):
 
-        # Loads and preprocesses an audio file into a Short-time Fourier Transform.
-        audio_stft = load_preprocess_audio(row["file_path"])
+        # Loads an audio file at a fixed sampling rate and returns the waveform as a NumPy array.
+        audio = load_audio(row["file_path"])
+
+        # Based on the type of representation, 'spectrogram' or 'stft' is computed.
+        if representation == "spectrogram":
+            features = compute_melspectrogram(audio)
+        else:
+            features = compute_short_time_fourier_transform(audio)
 
         # Preprocesses text string by stripping whitespace and converting to lowercase.
         processed_text = preprocess_text(row["text"])
 
-        # Saves the log mel spectrogram as NumPy array
+        # Saves the features as NumPy array
         file_path = os.path.join(processed_data_directory_path, f"{r_id}.npy")
         with open(file_path, "wb") as f:
-            np.save(f, audio_stft)
+            np.save(f, features)
             f.close()
 
         # Appends the processed file info as dictionary to the list.
@@ -290,7 +299,7 @@ def preprocess_dataset(
             {
                 "file_path": file_path,
                 "text": processed_text,
-                "n_time_frames": audio_stft.shape[0],
+                "n_time_frames": features.shape[0],
             }
         )
 
