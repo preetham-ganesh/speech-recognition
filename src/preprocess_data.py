@@ -201,50 +201,6 @@ def compute_short_time_fourier_transform(audio: np.ndarray) -> np.ndarray:
     return stft
 
 
-def load_preprocess_audio(file_path: str) -> np.ndarray:
-    """Loads and preprocesses an audio file into a Short-time Fourier Transform.
-
-    Args:
-        file_path: A string for the absolute path of the file location.
-
-    Returns:
-        A NumPy array for the Short-time Fourier Transform loaded from the audio file.
-    """
-    # Asserts type & value of the arguments.
-    assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
-
-    # Loads the audio for file path with sampling rate 16k and mono as default.
-    audio, _ = librosa.load(file_path, sr=16000, mono=True)
-
-    # Sets the STFT parameters.
-    frame_length, frame_step, fft_length = 200, 80, 256
-
-    # Computes STFT using scipy. 'hop_length' corresponds to frame_step, n_fft to fft_length.
-    stfts = librosa.stft(
-        audio,
-        n_fft=fft_length,
-        hop_length=frame_step,
-        win_length=frame_length,
-        window="hann",
-    )
-
-    # Takes magnitude and apply power of 0.5.
-    x = np.abs(stfts) ** 0.5
-
-    # Transposes to shape (time, frequency).
-    x = x.T
-
-    # Normalizes the STFT to subtract mean, divide by standard deviation along frequency axis. Avoids, division by 0.
-    x_mean = np.mean(x, axis=1, keepdims=True)
-    x_std_dev = np.std(x, axis=1, keepdims=True)
-    x_std_dev = np.where(x_std_dev == 0, 1, x_std_dev)
-    x = (x - x_mean) / x_std_dev
-
-    # Replaces any NaN values with 0.
-    x = np.where(np.isnan(x), 0.0, x)
-    return x
-
-
 def preprocess_text(text: str) -> str:
     """Preprocesses text string by stripping whitespace and converting to lowercase.
 
