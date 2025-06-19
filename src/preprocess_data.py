@@ -151,8 +151,54 @@ def compute_melspectrogram(audio: np.ndarray) -> np.ndarray:
     std = np.where(std == 0, 1, std)
     log_mel_spec = (log_mel_spec - mean) / std
 
+    # Replaces any NaN values with 0.
+    log_mel_spec = np.where(np.isnan(log_mel_spec), 0.0, log_mel_spec)
+
     # Transposes to (time_steps, n_mels).
     return log_mel_spec.T
+
+
+def compute_short_time_fourier_transform(audio: np.ndarray) -> np.ndarray:
+    """Computes a normalized Short-Time Fourier Transform (STFT) representation of a raw audio waveform.
+
+    Args:
+        audio: A NumPy array for the raw audio signal.
+
+    Returns:
+        A NumPy array of shape (time_steps, frequency_bins) containing the normalized STFT magnitudes.
+    """
+    # Asserts type & value of the arguments.
+    assert isinstance(
+        audio, np.ndarray
+    ), "Variable audio should be of type 'np.ndarray'."
+
+    # Sets the STFT parameters.
+    frame_length, frame_step, fft_length = 200, 80, 256
+
+    # Computes STFT using scipy. 'hop_length' corresponds to frame_step, n_fft to fft_length.
+    stft = librosa.stft(
+        audio,
+        n_fft=fft_length,
+        hop_length=frame_step,
+        win_length=frame_length,
+        window="hann",
+    )
+
+    # Takes magnitude and apply power of 0.5.
+    stft = np.abs(stft) ** 0.5
+
+    # Transposes to shape (time, frequency).
+    stft = stft.T
+
+    # Normalizes the STFT to subtract mean, divide by standard deviation along frequency axis. Avoids, division by 0.
+    stft_mean = np.mean(stft, axis=1, keepdims=True)
+    stft_std_dev = np.std(stft, axis=1, keepdims=True)
+    stft_std_dev = np.where(stft_std_dev == 0, 1, stft_std_dev)
+    stft = (stft - stft_mean) / stft_std_dev
+
+    # Replaces any NaN values with 0.
+    stft = np.where(np.isnan(stft), 0.0, stft)
+    return stft
 
 
 def load_preprocess_audio(file_path: str) -> np.ndarray:
