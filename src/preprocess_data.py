@@ -110,8 +110,49 @@ def load_audio(file_path: str) -> np.ndarray:
     assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
 
     # Loads the audio for file path with sampling rate 16k and mono as default.
-    audio, sr = librosa.load(file_path, sr=16000, mono=True)
+    audio, _ = librosa.load(file_path, sr=16000, mono=True)
     return audio
+
+
+def compute_melspectrogram(audio: np.ndarray) -> np.ndarray:
+    """Computes a normalized log-Mel spectrogram from a raw audio waveform.
+
+    Args:
+        audio: A NumPy array for the raw audio signal.
+
+    Returns:
+        A NumPy array of shape (time_steps, n_mels) containing the normalized log-Mel spectrogram.
+    """
+    # Asserts type & value of the arguments.
+    assert isinstance(
+        audio, np.ndarray
+    ), "Variable audio should be of type 'np.ndarray'."
+
+    # Sets window and hop sizes (25ms window, 10ms hop = standard ASR values)
+    win_length, hop_length, n_fft = 400, 160, 512
+
+    # Computes Mel spectrogram.
+    mel_spectrogram = librosa.feature.melspectrogram(
+        y=audio,
+        sr=16000,
+        n_fft=n_fft,
+        hop_length=hop_length,
+        win_length=win_length,
+        n_mels=161,
+        power=2.0,
+    )
+
+    # Converts to log scale.
+    log_mel_spec = librosa.power_to_db(mel_spectrogram, ref=np.max)
+
+    # Normalizes across time (mean-variance normalization).
+    mean = np.mean(log_mel_spec, axis=1, keepdims=True)
+    std = np.std(log_mel_spec, axis=1, keepdims=True)
+    std = np.where(std == 0, 1, std)
+    log_mel_spec = (log_mel_spec - mean) / std
+
+    # Transposes to (time_steps, n_mels).
+    return log_mel_spec.T
 
 
 def load_preprocess_audio(file_path: str) -> np.ndarray:
