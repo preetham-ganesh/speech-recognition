@@ -78,9 +78,6 @@ class SpeechRecognition(object):
         # Get the callable signature (default is "serving_default")
         self.model = exported_model.signatures["serving_default"]
 
-        # Initializes object for the Dataset class.
-        self.dataset = Dataset(self.model_configuration)
-
     def load_preprocess_input(self, file_path: str) -> tf.Tensor:
         """Loads & preprocesses STFT of audio file based on model requirements.
 
@@ -110,8 +107,6 @@ class SpeechRecognition(object):
         # Casts STFT to float32 & adds an extra dimensions to it.
         stft = tf.convert_to_tensor(stft, dtype=tf.float32)
         stft = tf.expand_dims(stft, axis=0)
-        # stft = tf.expand_dims(stft, axis=-1)
-        print(stft.shape)
         return stft
 
     def predict(self, file_path: str) -> str:
@@ -150,7 +145,12 @@ class SpeechRecognition(object):
             decoder_input = tf.concat([decoder_input, predicted_id], axis=-1)
 
             # Stops decoding if the end-of-sequence (EOS) token is generated.
-            if self.model_configuration["tokenizer"]["id_to_char"] == "</s>":
+            if (
+                self.model_configuration["tokenizer"]["id_to_char"][
+                    str(predicted_id.numpy()[0][0])
+                ]
+                == "</s>"
+            ):
                 break
 
             # Appends predicted character into list.
@@ -162,3 +162,43 @@ class SpeechRecognition(object):
 
         # Returns predicted characters as a single text.
         return "".join(predicted_text)
+
+
+def main():
+    print()
+
+    # Parses the arguments.
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-mv",
+        "--model_version",
+        type=str,
+        required=True,
+        help="Version of the model used to perform the prediction.",
+    )
+    parser.add_argument(
+        "-fp",
+        "--file_path",
+        type=str,
+        required=True,
+        help="Location where the STFT of the audio file is located.",
+    )
+    args = parser.parse_args()
+
+    # Creates object attributes for the SpeechRecognition class.
+    speech_recognition = SpeechRecognition(args.model_version)
+
+    # Loads the model configuration file for model version.
+    speech_recognition.load_model_configuration()
+
+    # Loads model & other utilities for prediction.
+    speech_recognition.load_model()
+
+    # Predicts the transcription of a given STFT file using the trained Transformer model.
+    result = speech_recognition.predict(args.file_path)
+    print(f"Predicted text: {result}")
+    print()
+
+
+if __name__ == "__main__":
+    main()
