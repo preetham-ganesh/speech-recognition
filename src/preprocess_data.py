@@ -347,12 +347,25 @@ def main():
         required=True,
         help="Enter the size of the processed dataset.",
     )
+    parser.add_argument(
+        "-r",
+        "--representation",
+        type=str,
+        required=True,
+        help="Enter the type of representation to be computed from the audio file.",
+    )
     args = parser.parse_args()
 
     # Preprocesses audio files & their transcriptions in the current data split.
-    preprocess_dataset(args.dataset_version, "train", args.dataset_size)
-    preprocess_dataset(args.dataset_version, "validation", args.dataset_size)
-    preprocess_dataset(args.dataset_version, "test", args.dataset_size)
+    preprocess_dataset(
+        args.dataset_version, "train", args.dataset_size, args.representation
+    )
+    preprocess_dataset(
+        args.dataset_version, "validation", args.dataset_size, args.representation
+    )
+    preprocess_dataset(
+        args.dataset_version, "test", args.dataset_size, args.representation
+    )
 
 
 if __name__ == "__main__":
