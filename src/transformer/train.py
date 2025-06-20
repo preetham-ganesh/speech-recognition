@@ -59,7 +59,14 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 class Train(object):
     """Trains the ASR Transformer model based on the configuration."""
 
-    def __init__(self, model_version: str) -> None:
+    def __init__(
+        self,
+        d_units: int,
+        n_layers: int,
+        dataset_size: str,
+        dataset_version: str,
+        representation: str,
+    ) -> None:
         """Creates object attributes for the Train class.
 
         Args:
@@ -69,10 +76,29 @@ class Train(object):
             None.
         """
         # Asserts type & value of the arguments.
-        assert isinstance(model_version, str), "Variable model_version of type 'str'."
+        assert isinstance(d_units, int) and d_units in [
+            128,
+            256,
+            512,
+            1024,
+        ], "Variable d_units of type 'int' and should have values as 128, 256, 512 or 1024."
+        assert (
+            isinstance(n_layers, int) and 0 < n_layers <= 6
+        ), "Variable n_layers of type 'int' and should be between 1 & 6."
+        assert isinstance(dataset_size, str) and dataset_size in [
+            "mini",
+            "full",
+        ], "Variable dataset_size of type 'str' and should have value as 'mini' or 'full'."
+        assert isinstance(
+            dataset_version, str
+        ), "Variable dataset_version of type 'str'."
+        assert isinstance(representation, str) and dataset_size in [
+            "stft",
+            "spectrogram",
+        ], "Variable representation of type 'str' and should have value as 'stft' or 'spectrogram'."
 
         # Initalizes class variables.
-        self.model_version = model_version
+        self.model_version = f"v-{dataset_size}-{d_units}-{n_layers}-{representation}"
         self.best_validation_loss = None
 
     def load_model_configuration(self) -> None:
@@ -100,7 +126,6 @@ class Train(object):
         mlflow.set_tag(
             "dataset_version", self.model_configuration["dataset"]["version"]
         )
-        mlflow.set_tag("model_type", self.model_configuration["model"]["type"])
 
         # Logs parameters in MLFlow.
         mlflow.log_param("n_layers", self.model_configuration["model"]["n_layers"])
@@ -125,9 +150,9 @@ class Train(object):
         self.dataset.shuffle_slice_dataset()
 
         # Updates warmup steps in model configuration with n_train_steps_per_epoch.
-        self.model_configuration["optimizer"][
-            "warmup_steps"
-        ] = self.dataset.n_train_steps_per_epoch
+        self.model_configuration["optimizer"]["warmup_steps"] = (
+            self.dataset.n_train_steps_per_epoch * 4
+        )
 
         # Trains a simple character-level tokenizer for CTC-based speech recognition.
         self.dataset.train_tokenizer()
