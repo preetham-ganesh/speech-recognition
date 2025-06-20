@@ -156,7 +156,7 @@ class Dataset(object):
         other_characters = [" ", "'", "<s>", "</s>"]
         for c_id, char in enumerate(other_characters):
             self.char_to_id[char] = self.char_to_id["z"] + 1 + c_id
-            self.id_to_char[c_id + self.char_to_id["z"] + 1 + c_id] = char
+            self.id_to_char[self.char_to_id["z"] + 1 + c_id] = char
 
     def tokenize_text(self, text: str) -> List[int]:
         """Tokenizes text to convert into ids using trained tokenizer.
@@ -211,11 +211,14 @@ class Dataset(object):
         for f_id in range(len(file_paths)):
 
             # Loads previously saved STFT for current audio file.
-            stfts = np.load(str(file_paths[f_id], "UTF-8"))
+            features = np.load(str(file_paths[f_id], "UTF-8"))
 
             # Truncates STFTs if it has more than 'max_input_length' time frames.
-            if stfts.shape[0] > self.model_configuration["model"]["max_input_length"]:
-                stfts = stfts[
+            if (
+                features.shape[0]
+                > self.model_configuration["model"]["max_input_length"]
+            ):
+                features = features[
                     : self.model_configuration["model"]["max_input_length"], :
                 ]
 
@@ -223,11 +226,8 @@ class Dataset(object):
             sequence = self.tokenize_text(str(texts[f_id], "UTF-8"))
 
             # Appends extracted STFT & tokenized & encoded version of text for current file into list.
-            input_batch[f_id, : stfts.shape[0], :] = stfts
+            input_batch[f_id, : features.shape[0], :] = features
             target_batch.append(sequence)
-
-        # Adds extra dimension to the input batch, input & target lengths.
-        input_batch = tf.expand_dims(input_batch, axis=-1)
 
         # Pads input & target batch tensors with 0 at the end.
         target_batch = tf.keras.preprocessing.sequence.pad_sequences(
