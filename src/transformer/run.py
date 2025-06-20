@@ -31,11 +31,39 @@ def main():
         help="Name of the MLFlow experiment on which the model should be trained.",
     )
     parser.add_argument(
-        "-mv",
-        "--model_version",
+        "-ds",
+        "--dataset_size",
         type=str,
         required=True,
-        help="Version by which the trained model files should be saved as.",
+        help="Size of the dataset used for training the model.",
+    )
+    parser.add_argument(
+        "-dv",
+        "--dataset_version",
+        type=str,
+        required=True,
+        help="Version of the dataset used for training the model.",
+    )
+    parser.add_argument(
+        "-du",
+        "--d_units",
+        type=int,
+        required=True,
+        help="No. of units in the Encoder & Decoder layers in the Transformer model.",
+    )
+    parser.add_argument(
+        "-nl",
+        "--n_layers",
+        type=int,
+        required=True,
+        help="No. of layers in the Transformer model.",
+    )
+    parser.add_argument(
+        "-r",
+        "--representation",
+        type=str,
+        required=True,
+        help="Type of representation to be computed from the audio file.",
     )
     args = parser.parse_args()
 
@@ -56,11 +84,14 @@ def main():
         mlflow.create_experiment(args.experiment_name, artifact_location="")
     mlflow.set_experiment(args.experiment_name)
 
-    # Sets tag for model version.
-    mlflow.set_tag("model_version", "v{}".format(args.model_version))
-
     # Creates an object for the Train class.
-    trainer = Train(args.model_version)
+    trainer = Train(
+        args.d_units,
+        args.n_layers,
+        args.dataset_size,
+        args.dataset_version,
+        args.representation,
+    )
 
     # Loads model configuration for current model version.
     trainer.load_model_configuration()
