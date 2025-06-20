@@ -22,20 +22,55 @@ from src.transformer.dataset import Dataset
 class SpeechRecognition(object):
     """"""
 
-    def __init__(self, model_version: str) -> None:
+    def __init__(
+        self,
+        d_units: int,
+        n_layers: int,
+        dataset_size: str,
+        dataset_version: str,
+        representation: str,
+    ) -> None:
         """Creates object attributes for the SpeechRecognition class.
 
         Args:
-            model_version: A string for the version of the model should be used for prediction.
+            d_units: An integer for the model's embedding dimension. Must be one of [128, 256, 512, 1024].
+            n_layers: An integer for the no. of encoder-decoder layers in the Transformer. Must be between 1 and 6.
+            dataset_size: A string indicating the dataset used. Must be either 'mini' or 'full'.
+            dataset_version: A string representing the version of the dataset used (e.g., '1.0.0').
+            representation: A string specifying the input representation used, either 'stft' or 'spectrogram'.
 
         Returns:
             None.
         """
         # Asserts type & value of the arguments.
-        assert isinstance(model_version, str), "Variable model_version of type 'str'."
+        assert isinstance(d_units, int) and d_units in [
+            128,
+            256,
+            512,
+            1024,
+        ], "Variable d_units of type 'int' and should have values as 128, 256, 512 or 1024."
+        assert (
+            isinstance(n_layers, int) and 0 < n_layers <= 6
+        ), "Variable n_layers of type 'int' and should be between 1 & 6."
+        assert isinstance(dataset_size, str) and dataset_size in [
+            "mini",
+            "full",
+        ], "Variable dataset_size of type 'str' and should have value as 'mini' or 'full'."
+        assert isinstance(
+            dataset_version, str
+        ), "Variable dataset_version of type 'str'."
+        assert isinstance(representation, str) and representation in [
+            "stft",
+            "spectrogram",
+        ], "Variable representation of type 'str' and should have value as 'stft' or 'spectrogram'."
 
         # Initalizes class variables.
-        self.model_version = model_version
+        self.dataset_size = dataset_size
+        self.representation = representation
+        self.dataset_version = dataset_version
+        self.d_units = d_units
+        self.n_layers = n_layers
+        self.model_version = f"v-{dataset_size}-{d_units}-{n_layers}-{representation}"
 
     def load_model_configuration(self) -> None:
         """Loads the model configuration file for model version.
