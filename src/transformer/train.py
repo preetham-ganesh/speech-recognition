@@ -92,12 +92,17 @@ class Train(object):
         assert isinstance(
             dataset_version, str
         ), "Variable dataset_version of type 'str'."
-        assert isinstance(representation, str) and dataset_size in [
+        assert isinstance(representation, str) and representation in [
             "stft",
             "spectrogram",
         ], "Variable representation of type 'str' and should have value as 'stft' or 'spectrogram'."
 
         # Initalizes class variables.
+        self.dataset_size = dataset_size
+        self.representation = representation
+        self.dataset_version = dataset_version
+        self.d_units = d_units
+        self.n_layers = n_layers
         self.model_version = f"v-{dataset_size}-{d_units}-{n_layers}-{representation}"
         self.best_validation_loss = None
 
@@ -115,21 +120,31 @@ class Train(object):
             self.home_directory_path, "configs", "transformer"
         )
         self.model_configuration = load_json_file(
-            f"v{self.model_version}", model_configuration_directory_path
+            f"{self.dataset_size}_{self.representation}",
+            model_configuration_directory_path,
         )
 
-        # Sets tag in MLFlow.
+        # Updates model configuration with current model hyperparameters.
+        self.model_configuration["model"]["d_units"] = self.d_units
+        self.model_configuration["model"]["ff_units"] = self.d_units * 4
+        self.model_configuration["model"]["n_heads"] = self.d_units // 64
+        self.model_configuration["model"]["n_layers"] = self.n_layers
+        self.model_configuration["dataset"]["size"] = self.dataset_size
+        self.model_configuration["dataset"]["version"] = self.dataset_version
+        if self.d_units == 1024:
+            self.model_configuration["model"]["batch_size"] = 4
+
+        # Sets tags in MLFlow.
+        mlflow.set_tag("model_version", self.model_version)
         mlflow.set_tag(
             "architecture", self.model_configuration["model"]["architecture"]
         )
-        mlflow.set_tag("dataset_size", self.model_configuration["dataset"]["size"])
-        mlflow.set_tag(
-            "dataset_version", self.model_configuration["dataset"]["version"]
-        )
+        mlflow.set_tag("dataset_size", self.dataset_size)
+        mlflow.set_tag("dataset_version", self.dataset_version)
 
         # Logs parameters in MLFlow.
-        mlflow.log_param("n_layers", self.model_configuration["model"]["n_layers"])
-        mlflow.log_param("d_units", self.model_configuration["model"]["d_units"])
+        mlflow.log_param("n_layers", self.n_layers)
+        mlflow.log_param("d_units", self.d_units)
 
     def load_dataset(self) -> None:
         """Loads audio file paths & transcriptions in the dataset.
@@ -151,7 +166,7 @@ class Train(object):
 
         # Updates warmup steps in model configuration with n_train_steps_per_epoch.
         self.model_configuration["optimizer"]["warmup_steps"] = (
-            self.dataset.n_train_steps_per_epoch * 4
+            self.dataset.n_train_steps_per_epoch * 2
         )
 
         # Trains a simple character-level tokenizer for CTC-based speech recognition.
@@ -204,7 +219,7 @@ class Train(object):
             self.home_directory_path,
             "models",
             "transformer",
-            f"v{self.model_version}",
+            self.model_version,
             "checkpoints",
         )
         self.checkpoint = tf.train.Checkpoint(
@@ -230,11 +245,11 @@ class Train(object):
         self.model.summary(print_fn=lambda x: model_summary.append(x))
         model_summary = "\n".join(model_summary)
         print(model_summary)
-        mlflow.log_text(model_summary, f"v{self.model_version}/model_summary.txt")
+        mlflow.log_text(model_summary, f"{self.model_version}/model_summary.txt")
 
         # Creates the following directory path if it does not exist.
         self.reports_directory_path = check_directory_path_existence(
-            os.path.join("models", "transformer", f"v{self.model_version}", "reports")
+            os.path.join("models", "transformer", self.model_version, "reports")
         )
 
         # Plots the model & saves it as a PNG file.
@@ -250,7 +265,7 @@ class Train(object):
             # Logs the saved model plot PNG file.
             mlflow.log_artifact(
                 os.path.join(self.reports_directory_path, "model_plot.png"),
-                f"v{self.model_version}",
+                self.model_version,
             )
 
     def initialize_metric_trackers(self) -> None:
@@ -689,7 +704,7 @@ class Train(object):
             os.path.join(
                 "models",
                 "transformer",
-                f"v{self.model_version}",
+                self.model_version,
                 "serialized",
             )
         )
@@ -714,17 +729,17 @@ class Train(object):
         print()
 
         # Logs serialized model as artifact.
-        mlflow.log_artifacts(save_path, f"v{self.model_version}/model")
+        mlflow.log_artifacts(save_path, f"{self.model_version}/model")
 
         # Saves the updated model configuration in the model directory.
         save_json_file(
             self.model_configuration,
             "model_configuration",
-            os.path.join("models", "transformer", f"v{self.model_version}"),
+            os.path.join("models", "transformer", self.model_version),
         )
 
         # Logs updated model configuration as artifact.
         mlflow.log_dict(
             self.model_configuration,
-            f"v{self.model_version}/model_configuration.json",
+            f"{self.model_version}/model_configuration.json",
         )
