@@ -157,9 +157,30 @@ class Metrics(object):
         Returns:
             A floating value for the computed WER using Levenshtein distance.
         """
+        # Asserts type & value of the arguments.
+        assert isinstance(reference, str), "Variable reference of type 'str'."
+        assert isinstance(hypothesis, str), "Variable hypothesis of type 'str'."
+
         # Reference & hypothesis into words.
         ref_words = reference.strip().split()
         hyp_words = hypothesis.strip().split()
 
         # Computes word error rate.
         return editdistance.eval(ref_words, hyp_words) / max(1, len(ref_words))
+
+    def compute_cer(self, reference: str, hypothesis: str) -> float:
+        """Computes the Character Error Rate (CER) between a reference and predicted transcription.
+
+        Args:
+            reference: A string for the ground truth transcription.
+            hypothesis: A string for the predicted transcription from the model.
+        
+        Returns:
+            A floating value for the computed CER using Levenshtein distance.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(reference, str), "Variable reference of type 'str'."
+        assert isinstance(hypothesis, str), "Variable hypothesis of type 'str'."
+
+        # Computes character error rate.
+        return editdistance.eval(reference, hypothesis) / max(1, len(reference))
