@@ -16,18 +16,16 @@ import tensorflow as tf
 import numpy as np
 
 from src.utils import load_json_file
-from src.transformer.dataset import Dataset
 
 
 class SpeechRecognition(object):
-    """"""
+    """Generating transcriptions for preprocessed audio features (STFT or log-Mel spectrograms)."""
 
     def __init__(
         self,
         d_units: int,
         n_layers: int,
         dataset_size: str,
-        dataset_version: str,
         representation: str,
     ) -> None:
         """Creates object attributes for the SpeechRecognition class.
@@ -36,7 +34,6 @@ class SpeechRecognition(object):
             d_units: An integer for the model's embedding dimension. Must be one of [128, 256, 512, 1024].
             n_layers: An integer for the no. of encoder-decoder layers in the Transformer. Must be between 1 and 6.
             dataset_size: A string indicating the dataset used. Must be either 'mini' or 'full'.
-            dataset_version: A string representing the version of the dataset used (e.g., '1.0.0').
             representation: A string specifying the input representation used, either 'stft' or 'spectrogram'.
 
         Returns:
@@ -56,20 +53,12 @@ class SpeechRecognition(object):
             "mini",
             "full",
         ], "Variable dataset_size of type 'str' and should have value as 'mini' or 'full'."
-        assert isinstance(
-            dataset_version, str
-        ), "Variable dataset_version of type 'str'."
         assert isinstance(representation, str) and representation in [
             "stft",
             "spectrogram",
         ], "Variable representation of type 'str' and should have value as 'stft' or 'spectrogram'."
 
         # Initalizes class variables.
-        self.dataset_size = dataset_size
-        self.representation = representation
-        self.dataset_version = dataset_version
-        self.d_units = d_units
-        self.n_layers = n_layers
         self.model_version = f"v-{dataset_size}-{d_units}-{n_layers}-{representation}"
 
     def load_model_configuration(self) -> None:
@@ -83,7 +72,7 @@ class SpeechRecognition(object):
         """
         self.home_directory_path = os.getcwd()
         model_configuration_directory_path = os.path.join(
-            self.home_directory_path, "models", "transformer", f"v{self.model_version}"
+            self.home_directory_path, "models", "transformer", self.model_version
         )
         self.model_configuration = load_json_file(
             "model_configuration", model_configuration_directory_path
@@ -105,7 +94,7 @@ class SpeechRecognition(object):
                 self.home_directory_path,
                 "models",
                 "transformer",
-                f"v{self.model_version}",
+                self.model_version,
                 "serialized",
             )
         )
@@ -114,35 +103,35 @@ class SpeechRecognition(object):
         self.model = exported_model.signatures["serving_default"]
 
     def load_preprocess_input(self, file_path: str) -> tf.Tensor:
-        """Loads & preprocesses STFT of audio file based on model requirements.
+        """Loads & preprocesses model input features & preprocesses based on model requirements.
 
         Args:
-            file_path: A string for the location of the STFT for the audio file.
+            file_path: A string for the location of the features for the audio file.
 
         Returns:
-            A tensor for the STFT file loaded for the audio file.
+            A tensor for the features file loaded for the audio file.
         """
         # Asserts type & value of the arguments.
         assert isinstance(file_path, str), "Variable file_path should be of type 'str'."
 
-        # Loads previously saved STFT for current audio file.
-        stft = np.load(file_path)
+        # Loads previously saved features for current audio file.
+        features = np.load(file_path)
 
         # Pads the STFT file to maximum input length.
         pad_length = abs(
-            self.model_configuration["model"]["max_input_length"] - stft.shape[0]
+            self.model_configuration["model"]["max_input_length"] - features.shape[0]
         )
-        stft = np.pad(
-            stft,
+        features = np.pad(
+            features,
             pad_width=((0, pad_length), (0, 0)),
             mode="constant",
             constant_values=0,
         )[: self.model_configuration["model"]["max_input_length"], :]
 
         # Casts STFT to float32 & adds an extra dimensions to it.
-        stft = tf.convert_to_tensor(stft, dtype=tf.float32)
-        stft = tf.expand_dims(stft, axis=0)
-        return stft
+        features = tf.convert_to_tensor(features, dtype=tf.float32)
+        features = tf.expand_dims(features, axis=0)
+        return features
 
     def predict(self, file_path: str) -> str:
         """Predicts the transcription of a given STFT file using the trained Transformer model.
@@ -205,11 +194,32 @@ def main():
     # Parses the arguments.
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-mv",
-        "--model_version",
+        "-ds",
+        "--dataset_size",
         type=str,
         required=True,
-        help="Version of the model used to perform the prediction.",
+        help="Size of the dataset used for training the model.",
+    )
+    parser.add_argument(
+        "-du",
+        "--d_units",
+        type=int,
+        required=True,
+        help="No. of units in the Encoder & Decoder layers in the Transformer model.",
+    )
+    parser.add_argument(
+        "-nl",
+        "--n_layers",
+        type=int,
+        required=True,
+        help="No. of layers in the Transformer model.",
+    )
+    parser.add_argument(
+        "-r",
+        "--representation",
+        type=str,
+        required=True,
+        help="Type of representation to be computed from the audio file.",
     )
     parser.add_argument(
         "-fp",
@@ -221,7 +231,9 @@ def main():
     args = parser.parse_args()
 
     # Creates object attributes for the SpeechRecognition class.
-    speech_recognition = SpeechRecognition(args.model_version)
+    speech_recognition = SpeechRecognition(
+        args.d_units, args.n_layers, args.dataset_size, args.representation
+    )
 
     # Loads the model configuration file for model version.
     speech_recognition.load_model_configuration()
