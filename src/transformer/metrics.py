@@ -12,6 +12,9 @@ warnings.filterwarnings("ignore")
 logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
 
+from src.transformer.predict import SpeechRecognition
+
+
 class Metrics(object):
     """Computes and logs evaluation metrics for Automatic Speech Recognition (ASR) models."""
 
@@ -53,4 +56,28 @@ class Metrics(object):
         ], "Variable representation of type 'str' and should have value as 'stft' or 'spectrogram'."
 
         # Initalizes class variables.
+        self.dataset_size = dataset_size
+        self.representation = representation
+        self.d_units = d_units
+        self.n_layers = n_layers
         self.model_version = f"v-{dataset_size}-{d_units}-{n_layers}-{representation}"
+
+    def load_speech_recognizer(self) -> None:
+        """Initializes and loads the speech recognizer model and its configuration.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Creates object attributes for the SpeechRecognition class.
+        self.speech_recognizer = SpeechRecognition(
+            self.d_units, self.n_layers, self.dataset_size, self.representation
+        )
+
+        # Loads the model configuration file for model version.
+        self.speech_recognizer.load_model_configuration()
+
+        # Loads model & other utilities for prediction.
+        self.speech_recognizer.load_model()
