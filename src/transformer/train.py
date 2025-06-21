@@ -70,7 +70,11 @@ class Train(object):
         """Creates object attributes for the Train class.
 
         Args:
-            model_version: A string for the version of the current model.
+            d_units: An integer for the model's embedding dimension. Must be one of [128, 256, 512, 1024].
+            n_layers: An integer for the no. of encoder-decoder layers in the Transformer. Must be between 1 and 6.
+            dataset_size: A string indicating the dataset used. Must be either 'mini' or 'full'.
+            dataset_version: A string representing the version of the dataset used (e.g., '1.0.0').
+            representation: A string specifying the input representation used, either 'stft' or 'spectrogram'.
 
         Returns:
             None.
