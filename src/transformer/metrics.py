@@ -12,7 +12,10 @@ warnings.filterwarnings("ignore")
 logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
 
+import pandas as pd
+
 from src.transformer.predict import SpeechRecognition
+from src.utils import check_directory_path_existence
 
 
 class Metrics(object):
@@ -81,3 +84,39 @@ class Metrics(object):
 
         # Loads model & other utilities for prediction.
         self.speech_recognizer.load_model()
+
+    def load_data(self, split_name: str) -> None:
+        """Loads the processed dataset information for a specified data split.
+
+        Args:
+            split_name: A string for the name of the split the text belongs to.
+
+        Returns:
+            None.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(split_name, str), "Variable split_name of type 'str'."
+
+        # Adds split name to class variable.
+        self.split_name = split_name
+
+        # Checks if the following directory path exists.
+        processed_data_directory_path = check_directory_path_existence(
+            os.path.join(
+                "data",
+                "processed_data",
+                "librispeech",
+                f"v{self.speech_recognizer.model_configuration['dataset']['version']}",
+            )
+        )
+
+        # Loads the processed dataset info for current split.
+        self.dataset_info = pd.read_csv(
+            os.path.join(
+                processed_data_directory_path, self.split_name, "dataset_info.csv"
+            )
+        )
+        print(
+            f"No. of examples in the {self.split_name} data split: {len(self.dataset_info['validation'])}"
+        )
+        print()
