@@ -741,6 +741,7 @@ class Train(object):
             "model_configuration",
             os.path.join("models", "transformer", self.model_version),
         )
+        print()
 
         # Logs updated model configuration as artifact.
         mlflow.log_dict(
