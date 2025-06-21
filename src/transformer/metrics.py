@@ -120,3 +120,28 @@ class Metrics(object):
             f"No. of examples in the {self.split_name} data split: {len(self.dataset_info['validation'])}"
         )
         print()
+
+    def generate_predictions(self) -> None:
+        """Generates transcriptions for all examples in the loaded dataset split.
+
+        Args:
+            None.
+        
+        Returns:
+            None.
+        """
+        # Iterates through each example in the dataset.
+        self.predicted_lines = list()
+        for f_id in range(len(self.dataset_info)):
+
+            # Predicts the transcription of a given features file using the trained Transformer model.
+            predicted_text = self.speech_recognizer.predict(
+                str(self.dataset_info["file_path"].iloc[f_id])
+            )
+            print(f"File path: {str(self.dataset_info["file_path"].iloc[f_id])}")
+            print(f"Target text: {self.dataset_info["text"]}")
+            print(f"Predicted text: {predicted_text}")
+            print()
+
+            # Appends predicted text to list.
+            self.predicted_lines.append(predicted_text)
