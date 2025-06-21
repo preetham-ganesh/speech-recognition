@@ -2,7 +2,6 @@ import os
 import sys
 import warnings
 import logging
-import argparse
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -14,6 +13,8 @@ logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
 import pandas as pd
 import editdistance
+import mlflow
+import numpy as np
 
 from src.transformer.predict import SpeechRecognition
 from src.utils import check_directory_path_existence
@@ -127,7 +128,7 @@ class Metrics(object):
 
         Args:
             None.
-        
+
         Returns:
             None.
         """
@@ -139,8 +140,8 @@ class Metrics(object):
             predicted_text = self.speech_recognizer.predict(
                 str(self.dataset_info["file_path"].iloc[f_id])
             )
-            print(f"File path: {str(self.dataset_info["file_path"].iloc[f_id])}")
-            print(f"Target text: {self.dataset_info["text"]}")
+            print(f"File path: {str(self.dataset_info['file_path'].iloc[f_id])}")
+            print(f"Target text: {self.dataset_info['text']}")
             print(f"Predicted text: {predicted_text}")
             print()
 
@@ -153,7 +154,7 @@ class Metrics(object):
         Args:
             reference: A string for the ground truth transcription.
             hypothesis: A string for the predicted transcription from the model.
-        
+
         Returns:
             A floating value for the computed WER using Levenshtein distance.
         """
@@ -174,7 +175,7 @@ class Metrics(object):
         Args:
             reference: A string for the ground truth transcription.
             hypothesis: A string for the predicted transcription from the model.
-        
+
         Returns:
             A floating value for the computed CER using Levenshtein distance.
         """
@@ -184,3 +185,34 @@ class Metrics(object):
 
         # Computes character error rate.
         return editdistance.eval(reference, hypothesis) / max(1, len(reference))
+
+    def compute_metrics(self) -> None:
+        """Computes evaluation metrics (WER and CER) for the current dataset split.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+        """
+        # Iterate over all transcriptions in the dataset.
+        wer_score, cer_score = list(), list()
+        for f_id in range(len(self.dataset_info["text"])):
+
+            # Appends computed WER & CER score to the lists.
+            wer_score.append(
+                self.compute_wer(
+                    str(self.dataset_info["text"].iloc[f_id]),
+                    self.predicted_lines[f_id],
+                )
+            )
+            cer_score.append(
+                self.compute_cer(
+                    str(self.dataset_info["text"].iloc[f_id]),
+                    self.predicted_lines[f_id],
+                )
+            )
+
+        # Log average WER and CER metrics to MLflow, tagged by data split.
+        mlflow.log_metrics({f"{self.split_name}_wer": np.mean(wer_score)})
+        mlflow.log_metrics({f"{self.split_name}_cer": np.mean(cer_score)})
