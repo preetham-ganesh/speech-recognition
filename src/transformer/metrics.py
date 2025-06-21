@@ -13,6 +13,7 @@ logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
 
 import pandas as pd
+import editdistance
 
 from src.transformer.predict import SpeechRecognition
 from src.utils import check_directory_path_existence
@@ -145,3 +146,20 @@ class Metrics(object):
 
             # Appends predicted text to list.
             self.predicted_lines.append(predicted_text)
+
+    def compute_wer(self, reference: str, hypothesis: str) -> float:
+        """Computes the Word Error Rate (WER) between a reference and predicted transcription.
+
+        Args:
+            reference: A string for the ground truth transcription.
+            hypothesis: A string for the predicted transcription from the model.
+        
+        Returns:
+            A floating value for the computed WER using Levenshtein distance.
+        """
+        # Reference & hypothesis into words.
+        ref_words = reference.strip().split()
+        hyp_words = hypothesis.strip().split()
+
+        # Computes word error rate.
+        return editdistance.eval(ref_words, hyp_words) / max(1, len(ref_words))
