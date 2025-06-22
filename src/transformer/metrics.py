@@ -1,15 +1,4 @@
 import os
-import sys
-import warnings
-import logging
-
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-BASE_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(BASE_PATH)
-warnings.filterwarnings("ignore")
-logging.getLogger("tensorflow").setLevel(logging.FATAL)
-
 
 import pandas as pd
 import editdistance
@@ -119,7 +108,7 @@ class Metrics(object):
             )
         )
         print(
-            f"No. of examples in the {self.split_name} data split: {len(self.dataset_info['validation'])}"
+            f"No. of examples in the {self.split_name} data split: {len(self.dataset_info)}"
         )
         print()
 
@@ -141,7 +130,7 @@ class Metrics(object):
                 str(self.dataset_info["file_path"].iloc[f_id])
             )
             print(f"File path: {str(self.dataset_info['file_path'].iloc[f_id])}")
-            print(f"Target text: {self.dataset_info['text']}")
+            print(f"Target text: {self.dataset_info['text'].iloc[f_id]}")
             print(f"Predicted text: {predicted_text}")
             print()
 
@@ -186,15 +175,24 @@ class Metrics(object):
         # Computes character error rate.
         return editdistance.eval(reference, hypothesis) / max(1, len(reference))
 
-    def compute_metrics(self) -> None:
+    def compute_metrics(self, split_name: str) -> None:
         """Computes evaluation metrics (WER and CER) for the current dataset split.
 
         Args:
-            None.
+            split_name: A string for the name of the split the text belongs to.
 
         Returns:
             None.
         """
+        # Asserts type & value of the arguments.
+        assert isinstance(split_name, str), "Variable split_name of type 'str'."
+
+        # Loads the processed dataset information for a specified data split.
+        self.load_data(split_name)
+
+        # Generates transcriptions for all examples in the loaded dataset split.
+        self.generate_predictions()
+
         # Iterate over all transcriptions in the dataset.
         wer_score, cer_score = list(), list()
         for f_id in range(len(self.dataset_info["text"])):
