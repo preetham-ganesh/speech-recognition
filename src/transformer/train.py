@@ -286,6 +286,52 @@ class Train(object):
         self.train_accuracy = tf.keras.metrics.Mean(name="train_accuracy")
         self.validation_accuracy = tf.keras.metrics.Mean(name="validation_accuracy")
 
+    def compute_ctc_loss(
+        self, target_batch: tf.Tensor, predicted_batch: tf.Tensor
+    ) -> tf.Tensor:
+        """Computes the Connectionist Temporal Classification (CTC) loss between the target sequences & the predicted
+        logits from the model.
+
+        Args:
+            target_batch: A tensor which contains the actual values for the current batch.
+            predicted_batch: A tensor which contains the predicted values for the current batch.
+
+        Returns:
+            A tensor for the average CTC loss in current batch.
+        """
+        # Asserts type & value of the arguments.
+        assert isinstance(
+            target_batch, tf.Tensor
+        ), "Variable target_batch should be of type 'tf.Tensor'."
+        assert isinstance(
+            predicted_batch, tf.Tensor
+        ), "Variable predicted_batch should be of type 'tf.Tensor'."
+
+        # Computes target & logit lengths.
+        target_lengths = tf.reduce_sum(
+            tf.cast(tf.math.not_equal(target_batch, 0), tf.int32), axis=1
+        )
+        logit_lengths = tf.fill([predicted_batch.shape[0]], predicted_batch.shape[1])
+
+        # Converts dense target_batch to SparseTensor format.
+        sparse_targets = tf.keras.backend.ctc_label_dense_to_sparse(
+            target_batch, tf.cast(target_lengths, dtype=tf.int32)
+        )
+
+        # Computes CTC loss (expects logits not passed through softmax).
+        loss = tf.nn.ctc_loss(
+            labels=sparse_targets,
+            logits=predicted_batch,
+            label_length=tf.cast(target_lengths, tf.int32),
+            logit_length=tf.cast(logit_lengths, tf.int32),
+            logits_time_major=False,
+            blank_index=0,
+        )
+
+        # Adds numerical stability, & computes batch level mean.
+        loss = tf.where(tf.math.is_finite(loss), loss, tf.zeros_like(loss))
+        return tf.reduce_mean(loss)
+
     def compute_loss(
         self, target_batch: tf.Tensor, predicted_batch: tf.Tensor
     ) -> tf.Tensor:
@@ -325,8 +371,6 @@ class Train(object):
         self, target_batch: tf.Tensor, predicted_batch: tf.Tensor
     ) -> tf.Tensor:
         """Computes accuracy for the current batch using actual & predicted values.
-
-        Computes accuracy for the current batch using actual & predicted values.
 
         Args:
             target_batch: A tensor which contains the actual values for the current batch.
