@@ -117,7 +117,7 @@ class SpeechRecognition(object):
         # Loads previously saved features for current audio file.
         features = np.load(file_path)
 
-        # Pads the STFT file to maximum input length.
+        # Pads the features file to maximum input length.
         pad_length = abs(
             self.model_configuration["model"]["max_input_length"] - features.shape[0]
         )
@@ -158,7 +158,9 @@ class SpeechRecognition(object):
         for _ in range(100):
 
             # Perform forward pass through the model to get predictions.
-            predictions = self.model(input_sequence=stft, target_sequence=decoder_input)
+            predictions = self.model(
+                input_sequence=features, target_sequence=decoder_input
+            )
 
             # Extracts the most probable next token.
             predicted_id = tf.cast(
@@ -176,6 +178,15 @@ class SpeechRecognition(object):
                 == "</s>"
             ):
                 break
+
+            # Skips current character if its blank.
+            elif (
+                self.model_configuration["tokenizer"]["id_to_char"][
+                    str(predicted_id.numpy()[0][0])
+                ]
+                == ""
+            ):
+                continue
 
             # Appends predicted character into list.
             predicted_text.append(
@@ -226,7 +237,7 @@ def main():
         "--file_path",
         type=str,
         required=True,
-        help="Location where the STFT of the audio file is located.",
+        help="Location where the features of the audio file is located.",
     )
     args = parser.parse_args()
 
@@ -241,7 +252,7 @@ def main():
     # Loads model & other utilities for prediction.
     speech_recognition.load_model()
 
-    # Predicts the transcription of a given STFT file using the trained Transformer model.
+    # Predicts the transcription of a given features file using the trained Transformer model.
     result = speech_recognition.predict(args.file_path)
     print(f"Predicted text: {result}")
     print()
