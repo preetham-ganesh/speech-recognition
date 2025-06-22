@@ -16,6 +16,7 @@ import mlflow
 
 from src.utils import set_physical_devices_memory_limit, check_directory_path_existence
 from src.transformer.train import Train
+from src.transformer.metrics import Metrics
 
 
 def main():
@@ -113,6 +114,20 @@ def main():
 
     # Serializes model as TensorFlow module & saves it as MLFlow artifact.
     trainer.serialize_model()
+
+    # Creates object attributes for the Metrics class.
+    metrics = Metrics(
+        args.d_units, args.n_layers, args.dataset_size, args.representation
+    )
+
+    # Initializes and loads the speech recognizer model and its configuration.
+    metrics.load_speech_recognizer()
+
+    # Computes evaluation metrics (WER and CER) for the current dataset split.
+    metrics.compute_metrics("validation")
+
+    # Computes evaluation metrics (WER and CER) for the current dataset split.
+    metrics.compute_metrics("test")
 
 
 if __name__ == "__main__":
