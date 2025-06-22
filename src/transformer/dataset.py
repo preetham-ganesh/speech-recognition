@@ -145,7 +145,7 @@ class Dataset(object):
             None.
         """
         # Creates empty dictionary to store char <-> ids.
-        self.char_to_id, self.id_to_char = dict(), dict()
+        self.char_to_id, self.id_to_char = {"": 0}, {0: ""}
 
         # Iterates across ASCII lowercase to add them to tokenizer.
         for c_id in range(26):
