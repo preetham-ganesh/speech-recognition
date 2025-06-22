@@ -332,12 +332,10 @@ class Train(object):
         loss = tf.where(tf.math.is_finite(loss), loss, tf.zeros_like(loss))
         return tf.reduce_mean(loss)
 
-    def compute_loss(
+    def compute_sce_loss(
         self, target_batch: tf.Tensor, predicted_batch: tf.Tensor
     ) -> tf.Tensor:
-        """Computes loss for the current batch using actual & predicted values.
-
-        Computes loss for the current batch using actual & predicted values.
+        """Computes sparse categorical cross entropy loss for the current batch using actual & predicted values.
 
         Args:
             target_batch: A tensor for target batch of generated mask images.
@@ -433,7 +431,9 @@ class Train(object):
         # Computes the model output for current batch, and metrics for current model output.
         with tf.GradientTape() as tape:
             predictions = self.model([input_batch, target_batch_inp], training=False)
-            loss = self.compute_loss(target_batch_real, predictions)
+            loss = 0.3 * self.compute_ctc_loss(
+                target_batch, predictions
+            ) + 0.7 * self.compute_sce_loss(target_batch_real, predictions)
             accuracy = self.compute_accuracy(target_batch_real, predictions)
 
         # Computes gradients using loss and model variables.
@@ -470,7 +470,9 @@ class Train(object):
 
         # Computes the model output for current batch, and metrics for current model output.
         predictions = self.model([input_batch, target_batch_inp], training=False)
-        loss = self.compute_loss(target_batch_real, predictions)
+        loss = loss = 0.3 * self.compute_ctc_loss(
+            target_batch, predictions
+        ) + 0.7 * self.compute_sce_loss(target_batch_real, predictions)
         accuracy = self.compute_accuracy(target_batch_real, predictions)
 
         # Computes batch metrics and appends it to main metrics.
