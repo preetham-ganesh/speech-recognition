@@ -1,0 +1,24 @@
+{
+  "dataset": {},
+  "optimizer": {
+    "warmup_steps": 8000,
+    "beta_1": 0.9,
+    "beta_2": 0.98,
+    "epsilon": 1e-9
+  },
+  "model": {
+    "architecture": "transformer",
+    "epochs": 200,
+    "batch_size": 16,
+    "max_input_length": 1200,
+    "n_bins": 129,
+    "d_units": 128,
+    "ff_units": 512,
+    "n_heads": 2,
+    "n_layers": 1,
+    "target_vocab_size": 29,
+    "target_max_length": 100,
+    "rate": 0.1,
+    "patience_count": 3
+  }
+}
