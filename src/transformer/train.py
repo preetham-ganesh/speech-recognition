@@ -66,6 +66,7 @@ class Train(object):
         dataset_size: str,
         dataset_version: str,
         representation: str,
+        rate: float,
     ) -> None:
         """Creates object attributes for the Train class.
 
@@ -75,6 +76,7 @@ class Train(object):
             dataset_size: A string indicating the dataset used. Must be either 'mini' or 'full'.
             dataset_version: A string representing the version of the dataset used (e.g., '1.0.0').
             representation: A string specifying the input representation used, either 'stft' or 'spectrogram'.
+            rate: A floating point value for the dropout rate in the model.
 
         Returns:
             None.
@@ -100,6 +102,9 @@ class Train(object):
             "stft",
             "spectrogram",
         ], "Variable representation of type 'str' and should have value as 'stft' or 'spectrogram'."
+        assert (
+            isinstance(rate, float) and 0 <= rate <= 1
+        ), "Variable rate of type 'float' and should be between 0 & 1."
 
         # Initalizes class variables.
         self.dataset_size = dataset_size
@@ -107,6 +112,7 @@ class Train(object):
         self.dataset_version = dataset_version
         self.d_units = d_units
         self.n_layers = n_layers
+        self.rate = rate
         self.model_version = f"v-{dataset_size}-{d_units}-{n_layers}-{representation}"
         self.best_validation_loss = None
 
@@ -170,7 +176,7 @@ class Train(object):
 
         # Updates warmup steps in model configuration with n_train_steps_per_epoch.
         self.model_configuration["optimizer"]["warmup_steps"] = (
-            self.dataset.n_train_steps_per_epoch * 2
+            self.dataset.n_train_steps_per_epoch * 4
         )
 
         # Trains a simple character-level tokenizer for CTC-based speech recognition.
@@ -185,6 +191,7 @@ class Train(object):
         self.model_configuration["model"]["target_vocab_size"] = len(
             self.dataset.char_to_id
         )
+        self.model_configuration["model"]["rate"] = self.rate
 
     def load_model(self) -> None:
         """Loads model & other utilies based on model configuration.
